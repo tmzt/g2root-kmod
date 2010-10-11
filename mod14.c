@@ -44,6 +44,8 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (*
 
 	struct sysfs_dirent *cur;
 	
+    printk("walk_dir: linkdepth: %d\n", linkdepth);
+
 //	printk("dirent flags: %d\n", dir->s_flags);
 //	printk("dirent name: %s\n", dir->s_name);
 
@@ -58,7 +60,7 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (*
 		{
 		    int retval;
 
-		    printk("name: %s entering directory: %s\n", name, dir->s_symlink.target_sd->s_name);
+		    printk("name: %s entering directory: %s\n", name, cur->s_name);
 		    retval = walk_dir(cur, name, 0, found_it);
 
 		    if(retval)
