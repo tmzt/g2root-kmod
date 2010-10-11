@@ -63,6 +63,7 @@ static void walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (
 	};
 
 	if (dir->s_flags & SYSFS_KOBJ_LINK) {
+		printk("linkdepth: %d\n", linkdepth);
 		if (linkdepth > 0) {
 			printk("following symlink: %s\n", dir->s_symlink.target_sd->s_name);
 			walk_dir(dir->s_symlink.target_sd, name, linkdepth-1, found_it);

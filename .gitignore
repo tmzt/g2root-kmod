@@ -1,2 +1,4 @@
+*.o
 *.ko
 *.mod.c
+Module.symvers
