@@ -10,61 +10,58 @@ struct sysfs_dirent *sd;
 struct sysfs_dirent *dir;
 
 static struct device *get_dev(struct sysfs_dirent *dir);
-static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, void (*found_it)(struct sysfs_dirent *));
-static void found_msmsdcc(struct sysfs_dirent *dir);
-static void found_mmchost(struct sysfs_dirent *dir);
+static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, void (*found_it)(struct sysfs_dirent*, const char*, const int, const int));
+static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
+static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
 
 static struct device *get_dev(struct sysfs_dirent *dir) {
 	struct kobject *kobj;
 	struct device *dev;
 
-	kobj = dir->s_dir.kobj;	
+	kobj = dir->s_dir.kobj;
 	printk("get_dev: kobject: %.8x\n", (unsigned int)kobj);
 	dev = container_of(kobj, struct device, kobj);
 	printk("get_dev: dev: %.8x\n", (unsigned int)dev);
 	return dev;
 }
 
-static void found_msmsdcc(struct sysfs_dirent *dir) {
+static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth) {
 	struct platform_device *pdev = container_of(get_dev(dir), struct platform_device, dev);
 	printk("found_msmsdcc: pdev: %.8x\n", (unsigned int)pdev);
 	printk("pdev name: %s\n", pdev->name);
 	//platform_device_unregister(pdev);
 
-	walk_dir(dir, "mmc0", 1, &found_mmchost);
-	return;
+	return walk_dir(dir, "mmc0", 1, 1, &found_mmchost);
 }
 
-static void found_mmchost(struct sysfs_dirent *dir) {
+static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth) {
 	struct device *dev = get_dev(dir);
 	printk("found_mmchost: dev: %.8x\n", (unsigned int)dev);
+    return 0;
 }
 
-static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, void (*found_it)(struct sysfs_dirent *)) {
+static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, void (*found_it)(struct sysfs_dirent*, const char*, const int, const int)) {
 
 	struct sysfs_dirent *cur;
 	
-//    printk("walk_dir: name: %s\n", name);
-//    printk("walk_dir: linkdepth: %d\n", linkdepth);
+//	printk("dirent flags: %d\n", dir->s_flags);
+	printk("dirent name: %s depth: %d linkdepth: %d\n", dir->s_name, depth, linkdepth);
 
-	printk("dirent flags: %d\n", dir->s_flags);
-	printk("dirent name: %s\n", dir->s_name);
-
-/*
+    #if 0
 	if (dir->s_flags & SYSFS_KOBJ_LINK) {
-//		printk("name: %s linkdepth: %d\n", name, linkdepth);
+		//printk("name: %s linkdepth: %d\n", name, linkdepth);
 		if (linkdepth > 0) {
 			printk("following symlink: %s\n", dir->s_symlink.target_sd->s_name);
 			return walk_dir(dir->s_symlink.target_sd, name, linkdepth-1, found_it);
 		};
 		return 0;
 	};
-*/
+    #endif
 
 	if (strcmp(dir->s_name, name) == 0) {
         if (!(dir->s_flags & SYSFS_KOBJ_LINK)) {
 		    printk("found %s: %s\n", name, dir->s_name);
-		    (*found_it)(dir);
+		    (*found_it)(dir, name, linkdepth, depth);
 		    return 1;
         }
 	}
@@ -73,9 +70,8 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, v
 		for (cur = dir->s_dir.children; cur->s_sibling != NULL; cur = cur->s_sibling)
 		{
 		    int retval;
-
-		    printk("name: %s entering directory: %s\n", name, cur->s_name);
-		    retval = walk_dir(cur, name, linkdepth, found_it);
+//		    printk("name: %s entering directory: %s\n", name, cur->s_name);
+		    retval = walk_dir(cur, name, depth-1, linkdepth, found_it);
 
 		    if(retval)
     			return 1;
@@ -86,7 +82,6 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, v
 	if (dir->s_flags & SYSFS_KOBJ_ATTR) {
 		return 0;
 	};
-
 
 	return 0;
 }
@@ -100,7 +95,7 @@ static int __init test_init(void) {
 	printk("platform_bus kobject: %.8x\n", (unsigned int)pbus_kobject);
 
 //	walk_dir(sd, "msm_sdcc.2", 1, &found_msmsdcc);
-    walk_dir(sd, "mmc0", 1, &found_mmchost);
+    walk_dir(sd, "mmc0", 3, 1, &found_mmchost);
 
 	return 0;
 }
