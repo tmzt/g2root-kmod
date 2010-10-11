@@ -31,7 +31,8 @@ static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int d
 	printk("pdev name: %s\n", pdev->name);
 	//platform_device_unregister(pdev);
 
-	return walk_dir(dir, "mmc0", 1, 1, &found_mmchost);
+//	return walk_dir(dir, "mmc0", 1, 1, &found_mmchost);
+    return walk_dir(dir, "mmc1" /*rhod*/, 1, 1, &found_mmchost);
 }
 
 static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth) {
@@ -94,8 +95,8 @@ static int __init test_init(void) {
 
 	printk("platform_bus kobject: %.8x\n", (unsigned int)pbus_kobject);
 
-//	walk_dir(sd, "msm_sdcc.2", 1, &found_msmsdcc);
-    walk_dir(sd, "mmc0", 3, 1, &found_mmchost);
+	walk_dir(sd, "msm_sdcc.2", 3, 1, &found_msmsdcc);
+//    walk_dir(sd, "mmc0", 3, 1, &found_mmchost);
 
 	return 0;
 }
