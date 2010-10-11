@@ -10,7 +10,7 @@ struct sysfs_dirent *sd;
 struct sysfs_dirent *dir;
 
 static struct device *get_dev(struct sysfs_dirent *dir);
-static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, void (*found_it)(struct sysfs_dirent*, const char*, const int, const int));
+static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, int (*found_it)(struct sysfs_dirent*, const char*, const int, const int));
 static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
 static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
 
@@ -41,23 +41,23 @@ static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int d
     return 0;
 }
 
-static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, void (*found_it)(struct sysfs_dirent*, const char*, const int, const int)) {
+static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, int (*found_it)(struct sysfs_dirent*, const char*, const int, const int)) {
 
 	struct sysfs_dirent *cur;
+    struct sysfs_dirent *next;
 	
 //	printk("dirent flags: %d\n", dir->s_flags);
 	printk("dirent name: %s depth: %d linkdepth: %d\n", dir->s_name, depth, linkdepth);
 
-    #if 0
-	if (dir->s_flags & SYSFS_KOBJ_LINK) {
-		//printk("name: %s linkdepth: %d\n", name, linkdepth);
-		if (linkdepth > 0) {
+    if (dir->s_flags & SYSFS_KOBJ_LINK) {
+        if (strcmp(dir->s_name, name) == 0) {
+            return (*found_it)(dir, name, linkdepth-1, depth);
+        }
+        else if (linkdepth > 0) {
 			printk("following symlink: %s\n", dir->s_symlink.target_sd->s_name);
-			return walk_dir(dir->s_symlink.target_sd, name, linkdepth-1, found_it);
-		};
-		return 0;
-	};
-    #endif
+			return walk_dir(dir->s_symlink.target_sd, name, depth, linkdepth-1, found_it);
+        }
+    }
 
 	if (strcmp(dir->s_name, name) == 0) {
         if (!(dir->s_flags & SYSFS_KOBJ_LINK)) {
@@ -68,16 +68,19 @@ static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth,
 	}
 
 	if (dir->s_flags & SYSFS_DIR) {
-		for (cur = dir->s_dir.children; cur->s_sibling != NULL; cur = cur->s_sibling)
-		{
-		    int retval;
-//		    printk("name: %s entering directory: %s\n", name, cur->s_name);
-		    retval = walk_dir(cur, name, depth-1, linkdepth, found_it);
-
-		    if(retval)
-    			return 1;
-		}
-		return 0;
+        if (strcmp(dir->s_name, name) == 0) {
+            return (*found_it)(cur, name, depth-1, linkdepth);
+        } else if (depth > 0) {
+		    for (cur = dir->s_dir.children; cur->s_sibling != NULL; cur = cur->s_sibling)
+		    {
+		        int retval;
+    		    //printk("name: %s entering directory: %s\n", name, cur->s_name);
+		        retval = walk_dir(cur, name, depth-1, linkdepth, found_it);
+		        if(retval)
+        			return 1;
+		    }
+		    return 0;
+        }
 	};
 
 	if (dir->s_flags & SYSFS_KOBJ_ATTR) {
