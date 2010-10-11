@@ -31,7 +31,7 @@ static void found_msmsdcc(struct sysfs_dirent *dir) {
 	printk("pdev name: %s\n", pdev->name);
 	//platform_device_unregister(pdev);
 
-	walk_dir(dir, "mmc0", 1, found_mmchost);
+	walk_dir(dir, "mmc0", 1, &found_mmchost);
 	return;
 }
 
@@ -44,14 +44,15 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, v
 
 	struct sysfs_dirent *cur;
 	
-    printk("walk_dir: linkdepth: %d\n", linkdepth);
+    printk("walk_dir: name: %s\n", name);
+//    printk("walk_dir: linkdepth: %d\n", linkdepth);
 
 //	printk("dirent flags: %d\n", dir->s_flags);
 //	printk("dirent name: %s\n", dir->s_name);
 
 	if (strcmp(dir->s_name, name) == 0) {
 		printk("found %s: %s\n", name, dir->s_name);
-		found_it(dir);
+		(*found_it)(dir);
 		return 1;
 	}
 
@@ -93,7 +94,7 @@ static int __init test_init(void) {
 
 	printk("platform_bus kobject: %.8x\n", (unsigned int)pbus_kobject);
 
-	walk_dir(sd, "msm_sdcc.2", 1, found_msmsdcc);
+	walk_dir(sd, "msm_sdcc.2", 1, &found_msmsdcc);
 
 	return 0;
 }
