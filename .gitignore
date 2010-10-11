@@ -4,3 +4,4 @@
 Module.symvers
 .tmp_versions
 .*.cmd
+modules.order
