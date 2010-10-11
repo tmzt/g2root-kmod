@@ -61,7 +61,7 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, v
 		    int retval;
 
 		    printk("name: %s entering directory: %s\n", name, cur->s_name);
-		    retval = walk_dir(cur, name, 0, found_it);
+		    retval = walk_dir(cur, name, linkdepth, found_it);
 
 		    if(retval)
     			return 1;
