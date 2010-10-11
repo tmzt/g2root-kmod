@@ -10,7 +10,7 @@ struct sysfs_dirent *sd;
 struct sysfs_dirent *dir;
 
 static struct device *get_dev(struct sysfs_dirent *dir);
-static void walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (*found_it)(struct sysfs_dirent *));
+static int walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (*found_it)(struct sysfs_dirent *));
 static void found_msmsdcc(struct sysfs_dirent *dir);
 static void found_mmchost(struct sysfs_dirent *dir);
 
