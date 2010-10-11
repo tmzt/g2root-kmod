@@ -40,7 +40,7 @@ static void found_mmchost(struct sysfs_dirent *dir) {
 	printk("found_mmchost: dev: %.8x\n", (unsigned int)dev);
 }
 
-static void walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (*found_it)(struct sysfs_dirent *)) {
+static int walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (*found_it)(struct sysfs_dirent *)) {
 
 	struct sysfs_dirent *cur;
 	
@@ -50,16 +50,24 @@ static void walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (
 	if (strcmp(dir->s_name, name) == 0) {
 		printk("found %s: %s\n", name, dir->s_name);
 		found_it(dir);
-		return;
+		return 1;
 	}
 
 	if (dir->s_flags & SYSFS_DIR) {
-		for (cur = dir->s_dir.children; cur->s_sibling != NULL; cur = cur->s_sibling) walk_dir(cur, name, 0, found_it);
-		return;
+		for (cur = dir->s_dir.children; cur->s_sibling != NULL; cur = cur->s_sibling)
+		{
+		    int retval;
+
+		    retval = walk_dir(cur, name, 0, found_it);
+
+		    if(retval)
+			return 1;
+		}
+		return 0;
 	};
 
 	if (dir->s_flags & SYSFS_KOBJ_ATTR) {
-		return;
+		return 0;
 	};
 
 	if (dir->s_flags & SYSFS_KOBJ_LINK) {
@@ -68,10 +76,10 @@ static void walk_dir(struct sysfs_dirent *dir, char *name, int linkdepth, void (
 			printk("following symlink: %s\n", dir->s_symlink.target_sd->s_name);
 			walk_dir(dir->s_symlink.target_sd, name, linkdepth-1, found_it);
 		};
-		return;
+		return 0;
 	};
 
-	return;
+	return 0;
 }
 
 static int __init test_init(void) {
