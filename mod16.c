@@ -57,6 +57,7 @@ static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth,
 
     if (dir->s_flags & SYSFS_KOBJ_LINK) {
         if (strcmp(dir->s_name, name) == 0) {
+		    printk("found %s: %s\n", name, dir->s_name);
             return (*found_it)(dir, name, linkdepth-1, depth);
         }
         else if (linkdepth > 0) {
@@ -65,16 +66,9 @@ static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth,
         }
     }
 
-	if (strcmp(dir->s_name, name) == 0) {
-        if (!(dir->s_flags & SYSFS_KOBJ_LINK)) {
-		    printk("found %s: %s\n", name, dir->s_name);
-		    (*found_it)(dir, name, linkdepth, depth);
-		    return 1;
-        }
-	}
-
 	if (dir->s_flags & SYSFS_DIR) {
         if (strcmp(dir->s_name, name) == 0) {
+		    printk("found %s: %s\n", name, dir->s_name);
             return (*found_it)(cur, name, depth-1, linkdepth);
         } else if (depth > 0) {
 		    for (cur = dir->s_dir.children; cur->s_sibling != NULL; cur = cur->s_sibling)
@@ -104,7 +98,7 @@ static int __init test_init(void) {
 
 	printk("platform_bus kobject: %.8x\n", (unsigned int)pbus_kobject);
 
-	walk_dir(sd, "msm_sdcc.2", 3, 1, &found_msmsdcc);
+	walk_dir(sd, "msm_sdcc.2", 3, 0, &found_msmsdcc);
 //    walk_dir(sd, "mmc0", 3, 1, &found_mmchost);
 
 	return 0;
