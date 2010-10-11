@@ -51,9 +51,11 @@ static int walk_dir(struct sysfs_dirent *dir, char *name, const int linkdepth, v
 //	printk("dirent name: %s\n", dir->s_name);
 
 	if (strcmp(dir->s_name, name) == 0) {
-		printk("found %s: %s\n", name, dir->s_name);
-		(*found_it)(dir);
-		return 1;
+        if (!(dir->s_flags & SYSFS_KOBJ_LINK)) {
+		    printk("found %s: %s\n", name, dir->s_name);
+		    (*found_it)(dir);
+		    return 1;
+        }
 	}
 
 	if (dir->s_flags & SYSFS_DIR) {
