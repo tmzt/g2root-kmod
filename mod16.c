@@ -12,6 +12,7 @@ struct sysfs_dirent *dir;
 static struct device *get_dev(struct sysfs_dirent *dir);
 static int walk_dir(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth, int (*found_it)(struct sysfs_dirent*, const char*, const int, const int));
 static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
+static int found_mmchost_symlink(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
 static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth);
 
 static struct device *get_dev(struct sysfs_dirent *dir) {
@@ -25,6 +26,7 @@ static struct device *get_dev(struct sysfs_dirent *dir) {
 	return dev;
 }
 
+
 static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth) {
 	struct platform_device *pdev = container_of(get_dev(dir), struct platform_device, dev);
 	printk("found_msmsdcc: pdev: %.8x\n", (unsigned int)pdev);
@@ -32,7 +34,11 @@ static int found_msmsdcc(struct sysfs_dirent *dir, const char *name, const int d
 	//platform_device_unregister(pdev);
 
 //	return walk_dir(dir, "mmc0", 1, 1, &found_mmchost);
-    return walk_dir(dir, "mmc1" /*rhod*/, 3, 1, &found_mmchost);
+    return walk_dir(dir, "mmc1" /*rhod*/, 3, 1, &found_mmchost_symlink);
+}
+
+static int found_mmchost_symlink(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth) {
+    return walk_dir(dir, "msm_sdcc.2" /*rhod*/, 3, 1, &found_mmchost);
 }
 
 static int found_mmchost(struct sysfs_dirent *dir, const char *name, const int depth, const int linkdepth) {
