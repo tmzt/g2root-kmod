@@ -28,13 +28,14 @@ static struct mmc_host *get_host(const char* path) {
     printk("%s: block_device: %.8x\n", path, (unsigned int)bd);
     struct gendisk *gd = bd->bd_disk;
     printk("%s: gendisk: %.8x\n", path, (unsigned int)gd);
-    /*
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32))
     struct device *part_dev = disk_to_dev(gd);
     printk("%s: (part) device: %.8x\n", path, (unsigned int)part_dev);
     printk("%s: (part) device name: %s\n", path, dev_name(part_dev));
     struct device *disk_dev = part_dev->parent;
-    */
+    #else
     struct device *disk_dev = disk_to_dev(gd);
+    #endif
     printk("%s: (disk) device: %.8x\n", path, (unsigned int)disk_dev);
     printk("%s: (disk) device name: %s\n", path, dev_name(disk_dev));
     struct device *card_dev = disk_dev->parent;
