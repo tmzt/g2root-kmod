@@ -21,7 +21,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 
-#include "core.h"
+#include "wp_core.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Scott Walker <walker.scott@gmail.com>");
@@ -68,6 +68,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card)
 	dmesg("%.2x", ext_csd[i]);
     dmesg("\n");
 
+    /*
     // these are stubs because i can't actually do it :(
     set_chip_select(host, MMC_CS_HIGH);
     mmc_delay(1);
@@ -80,6 +81,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card)
 
     retval = send_cxd(host, 1, 0, MMC_RSP_R3 | MMC_CMD_BCR, response);
     dmesg("wpthis - cmd1: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
+    */
 
     return;
 }
