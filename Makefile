@@ -1,2 +1,2 @@
-obj-m += tmzt/hostoff3.ko
-obj-m += tmzt/rereg.ko
+obj-m += tmzt/hostoff3.o
+obj-m += tmzt/rereg.o
