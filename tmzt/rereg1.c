@@ -1,7 +1,13 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
+#include <linux/version.h>
+
 #include <linux/platform_device.h>
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32))
+#include "../arch/arm/mach-msm/include/mach/irqs.h"
+#endif
 
 #include "../arch/arm/mach-msm/include/mach/msm_iomap.h"
 

@@ -32,7 +32,7 @@ static struct mmc_host *get_host(const char* path) {
     struct block_device *bd = lookup_bdev(path);
     if (IS_ERR(bd)) {
         printk("%s: invalid block device (are you on android/mdev?)\n", path);
-        return -ENODEV;
+        return (struct mmc_host *)-ENODEV;
     }
     printk("%s: block_device: %.8x\n", path, (unsigned int)bd);
     struct gendisk *gd = bd->bd_disk;
