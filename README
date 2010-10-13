@@ -1,0 +1,29 @@
+
+Welcome to the g2root arm foreign/hostile kernel exploration toolkit.
+
+syntax:
+CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] [clean|DOSTUFF=0|DOSTUFF=1]
+
+
+to build
+
+set up your kernel like it says in the wiki under building a simple module
+
+http://forum.xda-developers.com/wiki/index.php?title=HTC_Vision#Building_a_basic_kernel_module
+
+then
+
+
+CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] DOSTUFF=0
+
+test and make sure it doesn't blow up and the printed (in dmesg) addresses look sane (not 0 or fffx whatever)
+
+CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] clean
+
+CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] DOSTUFF=1
+
+test this version
+
+
+
+
