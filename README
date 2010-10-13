@@ -5,24 +5,63 @@ syntax:
 CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] [clean|DOSTUFF=0|DOSTUFF=1]
 
 
-to build
+Building the toolkit
+                                                                                
+   You'll need an ARM toolchain. The following assumes you're using the         
+   CodeSourcery tools installed to /opt/arm-2008q3; otherwise, change the       
+   CROSS_COMPILE variable. 
 
-set up your kernel like it says in the wiki under building a simple module
+ $ git clone git://codeaurora.org/kernel/experimental.git kernel-source         
+ $ git clone git://gist.github.com/619505.git module-source                     
+ $ cd kernel-source && git checkout origin/aosp/android-msm-2.6.32-7x30-wip     
+ & # The follow commands may need to be run with CROSS_COMPILE=/opt/arm-2008q3/b
+ $ ARCH=arm make surf7x30_defconfig                                             
+ $ ARCH=arm make oldconfig                                                      
+                                                                                
+   At this point you'll need to edit .config to match below:                    
+                                                                                
+ CONFIG_LOCALVERSION="-g814e0a1 "                                               
+ CONFIG_LOCALVERSION_AUTO=n
 
+   Modify Makefile so it starts with this:                                      
+                                                                                
+ VERSION = 2                                                                    
+ PATCHLEVEL = 6 
+ SUBLEVEL = 32                                                                  
+ EXTRAVERSION = .17                                                             
+                                                                                
+   Continue as follows:                                                         
+                                                                                
+ $ ARCH=arm make prepare                                                        
+ $ ARCH=arm make scripts                                                        
+ $ cd ..                                                                        
+          
+taken from:
 http://forum.xda-developers.com/wiki/index.php?title=HTC_Vision#Building_a_basic_kernel_module
+(thanks FatTire and dpw13_)
 
 then
 
+ $ # The following line assumes the CodeSourcery cross-compiler                 
 
-CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] DOSTUFF=0
+ $ CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] DOSTUFF=0
 
-test and make sure it doesn't blow up and the printed (in dmesg) addresses look sane (not 0 or fffx whatever)
+   Copy to a place on your G2 (or other device).
 
-CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] clean
+   On the G2 (in a root shell):
 
-CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] DOSTUFF=1
+ g2# dmesg -c
+ g2# rmmod module.ko
+ g2# insmod module.ko
+ g2# dmesg
 
-test this version
+   Test and make sure it doesn't blow up and the printed (in dmesg) addresses look sane (not 0 or fffx whatever) Then proceed to build the working version:
+
+ $ CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] clean
+
+ $ CROSS_COMPILE=/opt/arm-2008q3/bin/arm-none-eabi- ARCH=arm make KDIR=[KERNEL SOURCE FROM WIKI] DOSTUFF=1
+
+   Now follow the same instructions to test. 
 
 
 
