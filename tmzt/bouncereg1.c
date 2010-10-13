@@ -58,6 +58,11 @@ static int rereg() {
             if (pdev->id == 2) {
                 printk("yes.\n");
                 printk("registering platform device: %s\n", pdev->name);
+                printk("checking kobj.state_initialized: %s", (pdev->dev.kobj.state_initialized) ? "true":"false");
+                if (pdev->dev.kobj.state_initialized) {
+                    printk("clearing.\n");
+                    pdev->dev.kobj.state_initialized = 0;
+                }
                 platform_device_register(pdev);
                 printk("done.\n");
             } else return -3;

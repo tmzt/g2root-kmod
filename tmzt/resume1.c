@@ -37,7 +37,8 @@ static int resume(struct platform_device *pdev) {
 //                platform_drv_probe(dev);
             } else { return -3; }
         } else { return -2; }
-    } else { return -1; }            
+    } else { return -1; }
+    return 0;
 }
 
 

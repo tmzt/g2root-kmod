@@ -1,12 +1,9 @@
 
-ifeq ($(DOSTUFF),)
-EXTRA_CFLAGS := -DDOSTUFF=$(DOSTUFF)
-endif
 
 all: modules
 
 modules:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules $(EXTRA_CFLAGS)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules $@ 
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
