@@ -15,13 +15,25 @@
 #include <linux/kdev_t.h>
 #include <linux/mount.h>
 #include <linux/platform_device.h>
-
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
+#include <linux/dma-mapping.h>
+#include <linux/ioport.h>
+
+#include <asm/io.h>
+#include <asm/cacheflush.h>
+#include <asm/div64.h>
+#include <asm/sizes.h>
+#include <asm/mach/mmc.h>
+
+#include <mach/msm_iomap.h>
+#include <mach/dma.h>
+#include <mach/htc_pwrsink.h>
 
 #include "wp_core.h"
+#include "wp_sdcc.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Scott Walker <walker.scott@gmail.com>");
@@ -33,6 +45,7 @@ MODULE_DESCRIPTION("i'd like this to disable wp on the emmc chip on my g2, pleas
 
 #define RCA 1
 #define KSTART 0xc0008000
+#define MSM_SDCC2_BASE 0xa0500000
 
 void have_fun(struct mmc_host *, struct mmc_card *);
 unsigned int offset = 0;
@@ -49,11 +62,14 @@ static inline void set_ios(struct mmc_host *host);
 
 void have_fun(struct mmc_host *host, struct mmc_card *card)
 {
+    struct msmsdcc_host *sdcchost;
     unsigned int status;
     int retval;
     u8 ext_csd[512];
     u32 response[4];
     int i;
+    unsigned int pwr;
+    void *virt;
 
     retval = mmc_send_ext_csd(host, card, ext_csd);
     status = getstatus(host);
@@ -67,6 +83,40 @@ void have_fun(struct mmc_host *host, struct mmc_card *card)
     for(i = 0; i < 512; i++)
 	dmesg("%.2x", ext_csd[i]);
     dmesg("\n");
+
+    virt = ioremap(MSM_SDCC2_BASE, PAGE_SIZE);
+    dmesg("wpthis - MSM_SDCC2_BASE remapped: 0x%.8x\n", (unsigned int)virt);
+
+    // let's see if we can read the controller...
+    pwr = readl((unsigned int)virt + MMCIPOWER);
+    dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
+
+    pwr = MCI_PWR_OFF;
+
+    dmesg("wpthis - MMCIPOWER (powered down): 0x%.8x\n", pwr);
+    dmesg("wpthis - powering down sdcc2...\n");
+    writel(pwr, (unsigned int)virt + MMCIPOWER);
+
+    mmc_delay(10000);
+
+    dmesg("wpthis - Powering up...\n");
+    pwr = MCI_PWR_UP;
+    writel(pwr, (unsigned int)virt + MMCIPOWER);
+
+    pwr = readl((unsigned int)virt + MMCIPOWER);
+    dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
+
+    mmc_delay(600);
+
+    dmesg("wpthis - Powering on...\n");
+    pwr = MCI_PWR_ON;
+    writel(pwr, (unsigned int)virt + MMCIPOWER);
+
+    pwr = readl((unsigned int)virt + MMCIPOWER);
+    dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
+
+    iounmap(virt);
+    dmesg("wpthis - MSM_SDCC2_BASE unmapped.\n");
 
     /*
     // these are stubs because i can't actually do it :(
@@ -229,6 +279,8 @@ static int __init wpthis_init(void)
     struct mmc_host *host = 0;
     struct mmc_card *card = 0;
     struct hd_struct *part0 = 0;
+    struct platform_device *pdev = 0;
+    struct device_driver *driver = 0;
     char name[BDEVNAME_SIZE];
     int i;
 
@@ -315,6 +367,27 @@ static int __init wpthis_init(void)
 
     dmesg("wpthis - platform_bus: 0x%.8x\n", (unsigned int)&platform_bus);
 
+    pdev = container_of(dev4, struct platform_device, dev);
+    if(!pdev)
+    {
+	dmesg("wpthis - !pdev\n");
+	return -ENOSYS;
+    }
+    dmesg("wpthis - pdev: 0x%.8x\n", (unsigned int)pdev);
+    dmesg("wpthis - pdev->name: %s\n", pdev->name);
+    dmesg("wpthis - pdev->id: %d\n", pdev->id);
+    dmesg("wpthis - pdev->num_resources: %d\n", pdev->num_resources);
+
+    for(i = 0; i < pdev->num_resources; i++)
+    {
+	if (pdev->resource[i].flags & IORESOURCE_MEM)
+	    dmesg("wpthis - pdev mem resource: 0x%.8x\n", (unsigned int)&pdev->resource[i]);
+	if (pdev->resource[i].flags & IORESOURCE_IRQ)
+	    dmesg("wpthis - pdev irq resource: 0x%.8x\n", (unsigned int)&pdev->resource[i]);
+	if (pdev->resource[i].flags & IORESOURCE_DMA)
+	    dmesg("wpthis - pdev dma resource: 0x%.8x\n", (unsigned int)&pdev->resource[i]);
+    }
+
     card = dev_to_mmc_card(dev2);
     host = card->host;
     if(!card)
@@ -363,6 +436,7 @@ static int __init wpthis_init(void)
     }
     */
 
+    /*
     for(i = 0; i <= sizeof(struct mmc_host); i += 4)
     {
 	u32 *base = (unsigned int *)((unsigned int *)host)[i];
@@ -387,15 +461,18 @@ static int __init wpthis_init(void)
 	    dmesg("wpthis - skipping 0x%.8x\n", (unsigned int)base);
 	}
     }
+    */
 
     dmesg("wpthis - mmc_hostname(host): %s\n", mmc_hostname(host));
 
     dmesg("wpthis - host->class_dev: 0x%.8x\n", (unsigned int)&host->class_dev);
     dmesg("wpthis - host->class_dev(dev_name): %s\n", dev_name(&host->class_dev));
 
+    /*
     mmc_remove_host(host);
 
     return -ENOSYS;
+    */
 
     dmesg("wpthis - claiming host...\n");
     mmc_claim_host(host);
