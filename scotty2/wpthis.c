@@ -97,7 +97,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card)
     dmesg("wpthis - powering down sdcc2...\n");
     writel(pwr, (unsigned int)virt + MMCIPOWER);
 
-    mmc_delay(10000);
+    mmc_delay(1000); // 1 second? lol
 
     dmesg("wpthis - Powering up...\n");
     pwr = MCI_PWR_UP;
