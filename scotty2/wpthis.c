@@ -151,6 +151,12 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
 
     mmc_delay(10);
 
+    dmesg("wpthis - re-enabling clock...\n");
+    if(clk_enable(clock))
+    {
+	dmesg("wpthis - failed to enable clock.\n");
+	return;
+    }
     dmesg("wpthis - setting clock to %lu...\n", MSM_SDCC_FMIN);
     retval = clk_set_rate(clock, MSM_SDCC_FMIN);
     dmesg("wpthis - retval: %d\n", retval);
@@ -185,10 +191,9 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
 
     set_chip_select(host, MMC_CS_DONTCARE);
     mmc_delay(1);
-
+    */
     retval = send_cxd(host, 1, 0, MMC_RSP_R3 | MMC_CMD_BCR, response);
     dmesg("wpthis - cmd1: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
-    */
 
     return;
 }
