@@ -21,6 +21,7 @@
 #include <linux/mmc/sd.h>
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/cacheflush.h>
@@ -46,8 +47,11 @@ MODULE_DESCRIPTION("i'd like this to disable wp on the emmc chip on my g2, pleas
 #define RCA 1
 #define KSTART 0xc0008000
 #define MSM_SDCC2_BASE 0xa0500000
+#define MSM_SDCC_FMIN 144000L
+#define MSM_SDCC_FMAX 50000000L
+#define MSM_SDCC_4BIT 1
 
-void have_fun(struct mmc_host *, struct mmc_card *);
+void have_fun(struct mmc_host *, struct mmc_card *, struct platform_device *);
 unsigned int offset = 0;
 u32 getstatus(struct mmc_host *);
 
@@ -57,10 +61,9 @@ int mmc_send_ext_csd(struct mmc_host *host, struct mmc_card *card, u8 *ext_csd);
 // host communications functions
 int send_cxd(struct mmc_host *host, u32 opcode, u32 arg, u32 flags, u32 *response);
 int send_cxd_data(struct mmc_host *host, struct mmc_card *card, u32 opcode, u32 arg, u32 flags, u32 *response, void *buf, unsigned int len);
-void set_chip_select(struct mmc_host *host, int mode);
-static inline void set_ios(struct mmc_host *host);
+void sdcc_writel(u32 data, unsigned int address, struct clk *clock);
 
-void have_fun(struct mmc_host *host, struct mmc_card *card)
+void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_device *pdev)
 {
     struct msmsdcc_host *sdcchost;
     unsigned int status;
@@ -68,8 +71,36 @@ void have_fun(struct mmc_host *host, struct mmc_card *card)
     u8 ext_csd[512];
     u32 response[4];
     int i;
-    unsigned int pwr;
+    unsigned int pwr = 0;
+    unsigned int clk = 0;
     void *virt;
+    struct clk *clock;
+    struct clk *pclock;
+
+    pclock = clk_get(&pdev->dev, "sdc_pclk");
+    if (IS_ERR(pclock)) {
+	dmesg("wpthis - failed to get sdc_pclk: %lu\n", PTR_ERR(pclock));
+	return;
+    }
+    dmesg("wpthis - sdc_pclk - enabling...\n");
+    if(clk_enable(pclock))
+    {
+	dmesg("wpthis - failed to enable pclock.\n");
+	return;
+    }
+    dmesg("wpthis - sdc_pclk: %lu\n", clk_get_rate(pclock));
+
+    clock = clk_get(&pdev->dev, "sdc_clk");
+    if (IS_ERR(clock)) {
+	dmesg("wpthis - failed to get sdc_clk: %lu\n", PTR_ERR(clock));
+	return;
+    }
+    if(clk_enable(pclock))
+    {
+	dmesg("wpthis - failed to enable clock.\n");
+	return;
+    }
+    dmesg("wpthis - sdc_clk: %lu\n", clk_get_rate(clock));
 
     retval = mmc_send_ext_csd(host, card, ext_csd);
     status = getstatus(host);
@@ -88,29 +119,55 @@ void have_fun(struct mmc_host *host, struct mmc_card *card)
     dmesg("wpthis - MSM_SDCC2_BASE remapped: 0x%.8x\n", (unsigned int)virt);
 
     // let's see if we can read the controller...
+    clk = readl((unsigned int)virt + MMCICLOCK);
+    dmesg("wpthis - MMCICLOCK: 0x%.8x\n", clk);
+
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
 
     pwr = MCI_PWR_OFF;
 
     dmesg("wpthis - MMCIPOWER (powered down): 0x%.8x\n", pwr);
-    dmesg("wpthis - powering down sdcc2...\n");
-    writel(pwr, (unsigned int)virt + MMCIPOWER);
+    dmesg("wpthis - Powering down sdcc2...\n");
+    sdcc_writel(pwr, (unsigned int)virt + MMCIPOWER, clock);
+    //    writel(pwr, (unsigned int)virt + MMCIPOWER);
 
-    mmc_delay(1000); // 1 second? lol
-
-    dmesg("wpthis - Powering up...\n");
-    pwr = MCI_PWR_UP;
-    writel(pwr, (unsigned int)virt + MMCIPOWER);
+    mmc_delay(10);
 
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
 
-    mmc_delay(600);
+    mmc_delay(1000);
 
+    dmesg("wpthis - Powering up...\n");
+    pwr = MCI_PWR_UP;
+    sdcc_writel(pwr, (unsigned int)virt + MMCIPOWER, clock);
+    //    writel(pwr, (unsigned int)virt + MMCIPOWER);
+
+    mmc_delay(10);
+
+    pwr = readl((unsigned int)virt + MMCIPOWER);
+    dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
+
+    mmc_delay(10);
+
+    dmesg("wpthis - setting clock to %lu...\n", MSM_SDCC_FMIN);
+    retval = clk_set_rate(clock, MSM_SDCC_FMIN);
+    dmesg("wpthis - retval: %d\n", retval);
+
+    clk = 0;
+    clk |= MCI_CLK_ENABLE;
+    clk |= (1 << 12);
+    clk |= (1 << 15);
+    sdcc_writel(clk, (unsigned int)virt + MMCICLOCK, clock);
+
+    mmc_delay(10);
+    
     dmesg("wpthis - Powering on...\n");
     pwr = MCI_PWR_ON;
-    writel(pwr, (unsigned int)virt + MMCIPOWER);
+    sdcc_writel(pwr, (unsigned int)virt + MMCIPOWER, clock);
+
+    mmc_delay(10);
 
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
@@ -177,24 +234,12 @@ int send_cxd(struct mmc_host *host, u32 opcode, u32 arg, u32 flags, u32 *respons
     return err;
 }
 
-void set_chip_select(struct mmc_host *host, int mode)
+void sdcc_writel(u32 data, unsigned int address, struct clk *clock)
 {
-    return; // no crash kthx, bai.
-    // this is destined to fail :(
-    host->ios.chip_select = mode;
-    set_ios(host);
-}
-
-static inline void set_ios(struct mmc_host *host)
-{
-    struct mmc_ios *ios = &host->ios;
-
-    dmesg("%s: clock %uHz busmode %u powermode %u cs %u Vdd %u width %u timing %u\n",
-	mmc_hostname(host), ios->clock, ios->bus_mode,
-	ios->power_mode, ios->chip_select, ios->vdd,
-	ios->bus_width, ios->timing);
-
-    host->ops->set_ios(host, ios);
+    writel(data, address);
+    /* 3 clk delay required! */
+    udelay(1 + ((3 * USEC_PER_SEC) /
+	    (clk_get_rate(clock) ? clk_get_rate(clock) : MSM_SDCC_FMIN)));
 }
 
 int send_cxd_data(struct mmc_host *host, struct mmc_card *card, u32 opcode, u32 arg, u32 flags, u32 *response, void *buf, unsigned int len)
@@ -280,7 +325,6 @@ static int __init wpthis_init(void)
     struct mmc_card *card = 0;
     struct hd_struct *part0 = 0;
     struct platform_device *pdev = 0;
-    struct device_driver *driver = 0;
     char name[BDEVNAME_SIZE];
     int i;
 
@@ -376,17 +420,6 @@ static int __init wpthis_init(void)
     dmesg("wpthis - pdev: 0x%.8x\n", (unsigned int)pdev);
     dmesg("wpthis - pdev->name: %s\n", pdev->name);
     dmesg("wpthis - pdev->id: %d\n", pdev->id);
-    dmesg("wpthis - pdev->num_resources: %d\n", pdev->num_resources);
-
-    for(i = 0; i < pdev->num_resources; i++)
-    {
-	if (pdev->resource[i].flags & IORESOURCE_MEM)
-	    dmesg("wpthis - pdev mem resource: 0x%.8x\n", (unsigned int)&pdev->resource[i]);
-	if (pdev->resource[i].flags & IORESOURCE_IRQ)
-	    dmesg("wpthis - pdev irq resource: 0x%.8x\n", (unsigned int)&pdev->resource[i]);
-	if (pdev->resource[i].flags & IORESOURCE_DMA)
-	    dmesg("wpthis - pdev dma resource: 0x%.8x\n", (unsigned int)&pdev->resource[i]);
-    }
 
     card = dev_to_mmc_card(dev2);
     host = card->host;
@@ -477,7 +510,7 @@ static int __init wpthis_init(void)
     dmesg("wpthis - claiming host...\n");
     mmc_claim_host(host);
 
-    have_fun(host, card);
+    have_fun(host, card, pdev);
     
     dmesg("wpthis - releasing host...\n");
     mmc_release_host(host);
