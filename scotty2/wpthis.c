@@ -63,6 +63,34 @@ int send_cxd(struct mmc_host *host, u32 opcode, u32 arg, u32 flags, u32 *respons
 int send_cxd_data(struct mmc_host *host, struct mmc_card *card, u32 opcode, u32 arg, u32 flags, u32 *response, void *buf, unsigned int len);
 void sdcc_writel(u32 data, unsigned int address, struct clk *clock);
 
+#define RESET_EMMC 1
+
+/* Only define one of these at a time! */
+//#define POWER_FAIL 1
+#define HARD_RESET 1
+
+void set_clk(unsigned int base, struct clk *clock, long unsigned freq) {
+  unsigned int clk = 0;
+  int retval;
+
+  dmesg("wpthis - re-enabling clock...\n");
+  if(clk_enable(clock))
+    {
+      dmesg("wpthis - failed to enable clock.\n");
+      return;
+    }
+
+  dmesg("wpthis - setting clock to %lu...\n", freq);
+  retval = clk_set_rate(clock, freq);
+  dmesg("wpthis - retval: %d\n", retval);
+
+  clk = 0;
+  clk |= MCI_CLK_ENABLE;
+  clk |= (1 << 12);
+  clk |= (1 << 15);
+  sdcc_writel(clk, base + MMCICLOCK, clock);
+}
+
 void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_device *pdev)
 {
     struct msmsdcc_host *sdcchost;
@@ -71,9 +99,10 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     u8 ext_csd[512];
     u32 response[4];
     u32 wpBits[2];
-    int i;
-    unsigned int pwr = 0;
+    int i, j;
+    int mode;
     unsigned int clk = 0;
+    unsigned int pwr = 0;
     void *virt;
     struct clk *clock;
     struct clk *pclock;
@@ -113,8 +142,35 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
       dmesg("\n");
     }
 
+    /* CSD can only be read while in stby state, CMD7 can move between
+       states */
+    /* address 0 deselects card, use RCA << 16 to re-select */
+    /* This uses R1b when going from disconnected to programming */
+    retval = send_cxd(host, MMC_SELECT_CARD, 0, MMC_RSP_NONE | MMC_CMD_AC, response);
+    if(!retval) {
+      dmesg("wpthis - Card is now in stby\n");
+    } else {
+      dmesg("wpthis - Couldn't send to stby, giving up\n");
+      return;
+    }
+
+    /* While in stby, we can ask 9, 10, and 39, or send it to sleep (5) */
+    /* Retrieve CSD */
+    retval = send_cxd(host, MMC_SEND_CSD, RCA << 16, MMC_RSP_R2 | MMC_CMD_AC, response);
+    if(!retval) {
+      dmesg("wpthis - CSD: 0x");
+      for(i=0;i<4;i++) {
+	dmesg("%08x", response[i]);
+      }
+      dmesg("\n");
+    }
+
+    retval = send_cxd(host, MMC_SELECT_CARD, RCA << 16, MMC_RSP_R1 | MMC_CMD_AC, response);
+    if(!retval) {
+      dmesg("wpthis - Card is now in tran\n");
+    }
+
     /* Check WP bits by segment */
-    int j;
     for(j=0;j<24;j++) {
       //int addr = 1 << (j-1);
       /* 32 results * 512B blocks gives 0x4000 size chunks */
@@ -153,7 +209,9 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
 
-#ifdef DOSTUFF
+#ifdef RESET_EMMC
+
+#ifdef POWER_FAIL
     pwr = MCI_PWR_OFF;
 
     dmesg("wpthis - MMCIPOWER (powered down): 0x%.8x\n", pwr);
@@ -180,21 +238,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
 
     mmc_delay(10);
 
-    dmesg("wpthis - re-enabling clock...\n");
-    if(clk_enable(clock))
-    {
-	dmesg("wpthis - failed to enable clock.\n");
-	return;
-    }
-    dmesg("wpthis - setting clock to %lu...\n", MSM_SDCC_FMIN);
-    retval = clk_set_rate(clock, MSM_SDCC_FMIN);
-    dmesg("wpthis - retval: %d\n", retval);
-
-    clk = 0;
-    clk |= MCI_CLK_ENABLE;
-    clk |= (1 << 12);
-    clk |= (1 << 15);
-    sdcc_writel(clk, (unsigned int)virt + MMCICLOCK, clock);
+    set_clk((unsigned int)virt, clock, MSM_SDCC_FMIN);
 
     mmc_delay(10);
     
@@ -203,6 +247,90 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     sdcc_writel(pwr, (unsigned int)virt + MMCIPOWER, clock);
 
     mmc_delay(10);
+#endif
+#ifdef HARD_RESET
+    retval = send_cxd(host, MMC_GO_IDLE_STATE, 0, MMC_RSP_NONE | MMC_CMD_BC, response);
+    if(!retval) {
+      dmesg("wpthis - card reset\n");
+    } else {
+      goto cleanup;
+    }
+
+    /* Do we need to set clocks back low here? */
+#if 1
+    set_clk((unsigned int)virt, clock, MSM_SDCC_FMIN);
+#endif
+
+    mmc_delay(100);
+
+    /* It's not clear when we do a reset if we really have to wait for BUSY to
+       appear, of if it starts off cleared because the card's not actually
+       ramping up. */
+    mode = 1;
+    while(mode < 2) {
+      retval = send_cxd(host, MMC_SEND_OP_COND, EMMC_OCR, MMC_RSP_R3 | MMC_CMD_BCR, response);
+      if(!retval) {
+	dmesg("wpthis - CMD1 returned: 0x%08x\n", response[0]);
+	switch(mode) {
+	case 0:
+	  // waiting for busy to appear
+	  if(response[0] & OCR_BUSY) {
+	    dmesg("wpthis - card busy\n");
+	    mode++;
+	  }
+	  break;
+	case 1:
+	  // waiting for busy to clear
+	  if((response[0] & OCR_BUSY) == 0) {
+	    dmesg("wpthis - card done with init!\n");
+	    mode++;
+	  }
+	  break;
+	default:
+	  // break out, we're screwed
+	  mode = 100;
+	}
+      } else {
+	dmesg("wpthis - bad response during idle\n");
+	goto cleanup;
+      }
+
+      mmc_delay(100);
+    }
+
+    dmesg("wpthis - moving to ID\n");
+
+    /* Next is CMD2, all input is just stuffed */
+    retval = send_cxd(host, MMC_ALL_SEND_CID, 0, MMC_RSP_R2 | MMC_CMD_BCR, response);
+    if(!retval) {
+      dmesg("wpthis - CMD2 returned CID: 0x");
+      for(i=0;i<4;i++) {
+	dmesg("%08x", response[i]);
+      }
+      dmesg("\n");
+    } else {
+      goto cleanup;
+    }
+
+    /* Finally we set the reladdr with CMD3 */
+    retval = send_cxd(host, MMC_ALL_SEND_CID, RCA << 16, MMC_RSP_R1 | MMC_CMD_AC, response);
+    if(!retval) {
+      dmesg("wpthis - CMD3 returned: 0x");
+      for(i=0;i<4;i++) {
+	dmesg("%08x", response[i]);
+      }
+      dmesg("\n");
+    } else {
+      goto cleanup;
+    }
+
+    /* Now we're in standby, we select the card to get back to trans */
+    retval = send_cxd(host, MMC_SELECT_CARD, RCA << 16, MMC_RSP_R1 | MMC_CMD_AC, response);
+    if(!retval) {
+      dmesg("wpthis - Card is now in tran\n");
+    }
+
+#endif
 
 #endif
 

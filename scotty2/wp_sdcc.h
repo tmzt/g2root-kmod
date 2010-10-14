@@ -142,6 +142,9 @@
 #define MCI_SDIOINTOPERMASK	(1 << 25)
 #define MCI_CCSTIMEOUTMASK	(1 << 26)
 
+#define OCR_BUSY                (1 << 31)
+#define EMMC_OCR                0x40ff8080
+
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x044
 #define MCICCSTIMER		0x058
