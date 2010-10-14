@@ -39,6 +39,8 @@ static int __init test_init(void) {
             off++;
         }
         data = hex2string(&line, 16);
+        data[65] = 0; /* be safe */
+        printk("%s", data);
     }
 
     printk("\n\ndone.\n");
