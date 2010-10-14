@@ -62,6 +62,8 @@ int mmc_send_ext_csd(struct mmc_host *host, struct mmc_card *card, u8 *ext_csd);
 int send_cxd(struct mmc_host *host, u32 opcode, u32 arg, u32 flags, u32 *response);
 int send_cxd_data(struct mmc_host *host, struct mmc_card *card, u32 opcode, u32 arg, u32 flags, u32 *response, void *buf, unsigned int len);
 void sdcc_writel(u32 data, unsigned int address, struct clk *clock);
+unsigned int sdcc_setup_cmd(unsigned int cmd, unsigned int flags);
+unsigned int sdcc_send_basic_cmd(void *base, struct clk *clock, unsigned int cmd, unsigned int arg,unsigned int *response);
 
 void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_device *pdev)
 {
@@ -73,6 +75,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     int i;
     unsigned int pwr = 0;
     unsigned int clk = 0;
+    unsigned int cmd = 0;
     void *virt;
     struct clk *clock;
     struct clk *pclock;
@@ -141,6 +144,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
 
     dmesg("wpthis - Powering up...\n");
     pwr = MCI_PWR_UP;
+    //    pwr |= MCI_OD;
     sdcc_writel(pwr, (unsigned int)virt + MMCIPOWER, clock);
     //    writel(pwr, (unsigned int)virt + MMCIPOWER);
 
@@ -171,16 +175,19 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     
     dmesg("wpthis - Powering on...\n");
     pwr = MCI_PWR_ON;
+    //    pwr |= MCI_OD;
     sdcc_writel(pwr, (unsigned int)virt + MMCIPOWER, clock);
 
-    mmc_delay(10);
+    mmc_delay(50);
 
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
 
-    iounmap(virt);
-    dmesg("wpthis - MSM_SDCC2_BASE unmapped.\n");
+    // CUT
+    retval = send_cxd(host, MMC_SELECT_CARD, 0, MMC_RSP_NONE | MMC_CMD_AC, response);
+    dmesg("wpthis - stby: 0x%.8x, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
 
+    return;
     /*
     // these are stubs because i can't actually do it :(
     set_chip_select(host, MMC_CS_HIGH);
@@ -193,11 +200,85 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     mmc_delay(1);
     */
 
+    // at this point, we should be ok to send a command.
+    // disable interrupts
+    sdcc_writel(0, (unsigned int)virt + MMCIMASK0, clock);
+    sdcc_writel(0, (unsigned int)virt + MMCIMASK1, clock);
+
+    cmd = sdcc_setup_cmd(1, MMC_RSP_R3 | MMC_CMD_BCR);
+    dmesg("wpthis - cmd1: 0x%.8x\n", cmd);
+
+    status = sdcc_send_basic_cmd(virt, clock, cmd, 0x40ff8000, response);
+
+    dmesg("wpthis - cmd1 response: 0x%.8x, %.8x:%.8x:%.8x:%.8x\n", status, response[0], response[1], response[2], response[3]);
+
+    iounmap(virt);
+    dmesg("wpthis - MSM_SDCC2_BASE unmapped.\n");
+
     // time to init.
-    retval = send_cxd(host, 1, 0, MMC_RSP_R3 | MMC_CMD_BCR, response);
-    dmesg("wpthis - cmd1: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
+    /*
+    retval = send_cxd(host, 1, 0x40ff8000, MMC_RSP_R3 | MMC_CMD_BCR, response);
+    dmesg("wpthis - cmd1[%d]: %d, %.8x:%.8x:%.8x:%.8x\n", i, retval, response[0], response[1], response[2], response[3]);
+
+    retval = send_cxd(host, 2, 0, MMC_RSP_R2 | MMC_CMD_BCR, response);
+    dmesg("wpthis - cmd2: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
+
+    retval = send_cxd(host, 3, RCA << 16, MMC_RSP_R1 | MMC_CMD_AC, response);
+    dmesg("wpthis - cmd3: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
+    */
 
     return;
+}
+
+unsigned int sdcc_send_basic_cmd(void *base, struct clk *clock, unsigned int cmd, unsigned int arg,unsigned int *response)
+{
+    unsigned int status;
+    unsigned int i = 0;
+
+    sdcc_writel(0, (unsigned int)base + MMCICLEAR, clock);
+    sdcc_writel(arg, (unsigned int)base + MMCIARGUMENT, clock);
+    sdcc_writel(cmd, (unsigned int)base + MMCICOMMAND, clock);
+
+    status = readl((unsigned int)base + MMCISTATUS);
+
+    while(!(status & MCI_CMDSENT) &&
+	!(status & MCI_CMDRESPEND) &&
+	!(status & MCI_CMDCRCFAIL) &&
+	!(status & MCI_CMDTIMEOUT))
+    {
+	if(!(i % 1000))
+	    dmesg("wpthis - status: 0x%.8x\n", status);
+	status = readl((unsigned int)base + MMCISTATUS);
+	i++;
+    }
+
+    response[0] = readl((unsigned int)base + MMCIRESPONSE0);
+    response[1] = readl((unsigned int)base + MMCIRESPONSE1);
+    response[2] = readl((unsigned int)base + MMCIRESPONSE2);
+    response[3] = readl((unsigned int)base + MMCIRESPONSE3);    
+
+    return status;
+}
+
+unsigned int sdcc_setup_cmd(unsigned int cmd, unsigned int flags)
+{
+    unsigned int outcmd = 0;
+    outcmd |= cmd;
+    outcmd |= MCI_CPSM_ENABLE;
+    if(flags & MMC_RSP_PRESENT)
+    {
+	if(flags & MMC_RSP_136)
+	    outcmd |= MCI_CPSM_LONGRSP;
+	outcmd |= MCI_CPSM_RESPONSE;
+    }
+
+    /*
+      if ((((cmd->opcode == 17) || (cmd->opcode == 18))  ||
+      ((cmd->opcode == 24) || (cmd->opcode == 25))) ||
+      (cmd->opcode == 53))
+      *c |= MCI_CSPM_DATCMD;
+      */
+    return outcmd;
 }
 
 u32 getstatus(struct mmc_host *host)
