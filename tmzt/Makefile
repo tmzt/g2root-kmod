@@ -8,4 +8,5 @@ obj-m += rereg1.o
 obj-m += resume1.o
 obj-m += bouncereg1.o
 obj-m += bouncepwrreg1.o
+obj-m += smidump1.o
 
