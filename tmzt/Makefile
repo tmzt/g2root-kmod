@@ -7,4 +7,5 @@ obj-m += rereg1.o
 #obj-m += suspend1.o
 obj-m += resume1.o
 obj-m += bouncereg1.o
+obj-m += bouncepwrreg1.o
 
