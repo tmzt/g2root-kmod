@@ -70,6 +70,7 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     int retval;
     u8 ext_csd[512];
     u32 response[4];
+    u32 wpBits[2];
     int i;
     unsigned int pwr = 0;
     unsigned int clk = 0;
@@ -102,29 +103,57 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     }
     dmesg("wpthis - sdc_clk: %lu\n", clk_get_rate(clock));
 
-    retval = mmc_send_ext_csd(host, card, ext_csd);
-    status = getstatus(host);
-    if(retval)
-    {
-	dmesg("wpthis - failed to get ext_csd. retval: %d, status: 0x%.8x\n", retval, status);
-	return;
+    /* Retrieve CSD */
+    retval = send_cxd(host, MMC_SEND_CSD, RCA << 16, MMC_RSP_R2 | MMC_CMD_AC, response);
+    if(!retval) {
+      dmesg("wpthis - CSD: 0x");
+      for(i=0;i<4;i++) {
+	dmesg("%08x", response[i]);
+      }
+      dmesg("\n");
     }
 
-    dmesg("wpthis - ext_csd: ");
-    for(i = 0; i < 512; i++)
+    /* Check WP bits by segment */
+    int j;
+    for(j=0;j<24;j++) {
+      //int addr = 1 << (j-1);
+      /* 32 results * 512B blocks gives 0x4000 size chunks */
+      int addr = 0x4000*j;
+      retval = send_cxd_data(host, card, MMC_SEND_WRITE_PROT_TYPE, addr, MMC_RSP_R1 | MMC_CMD_ADTC, response, wpBits, 8);
+      if(!retval) {
+	dmesg("wpthis - WP@%08x: 0x", addr);
+	for(i=0;i<2;i++) {
+	  dmesg("%08x", wpBits[i]);
+	}
+	dmesg("\n");
+      }
+    }
+
+    retval = mmc_send_ext_csd(host, card, ext_csd);
+    if(!retval) {
+      dmesg("wpthis - ext_csd: ");
+      for(i = 0; i < 512; i++)
 	dmesg("%.2x", ext_csd[i]);
-    dmesg("\n");
+      dmesg("\n");
+    }
 
     virt = ioremap(MSM_SDCC2_BASE, PAGE_SIZE);
     dmesg("wpthis - MSM_SDCC2_BASE remapped: 0x%.8x\n", (unsigned int)virt);
 
     // let's see if we can read the controller...
+    for(i=0;i<4;i++) {
+      int version;
+      version = readl((unsigned int)virt + MMCIPERIPHID + 4*i);
+      dmesg("wpthis - periph ID[%d]: 0x%08x\n", i, version);
+    }
+
     clk = readl((unsigned int)virt + MMCICLOCK);
     dmesg("wpthis - MMCICLOCK: 0x%.8x\n", clk);
 
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
 
+#ifdef DOSTUFF
     pwr = MCI_PWR_OFF;
 
     dmesg("wpthis - MMCIPOWER (powered down): 0x%.8x\n", pwr);
@@ -175,11 +204,19 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
 
     mmc_delay(10);
 
+#endif
+
     pwr = readl((unsigned int)virt + MMCIPOWER);
     dmesg("wpthis - MMCIPOWER reg: 0x%.8x\n", pwr);
 
+ cleanup:
     iounmap(virt);
     dmesg("wpthis - MSM_SDCC2_BASE unmapped.\n");
+
+#if 0
+    retval = send_cxd(host, 1, 0, MMC_RSP_R3 | MMC_CMD_BCR, response);
+    dmesg("wpthis - cmd1: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
+#endif
 
     /*
     // these are stubs because i can't actually do it :(
@@ -192,8 +229,6 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
     set_chip_select(host, MMC_CS_DONTCARE);
     mmc_delay(1);
     */
-    retval = send_cxd(host, 1, 0, MMC_RSP_R3 | MMC_CMD_BCR, response);
-    dmesg("wpthis - cmd1: %d, %.8x:%.8x:%.8x:%.8x\n", retval, response[0], response[1], response[2], response[3]);
 
     return;
 }
@@ -236,6 +271,11 @@ int send_cxd(struct mmc_host *host, u32 opcode, u32 arg, u32 flags, u32 *respons
 
     memcpy(response, cmd.resp, 4);
     
+    if(err) {
+      u32 status = getstatus(host);
+      dmesg("wpthis - CMD%d returned %08x, status is %08x\n", opcode, err, status);
+    }
+
     return err;
 }
 
