@@ -256,32 +256,30 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
       goto cleanup;
     }
 
-    /* Do we need to set clocks back low here? */
-#if 1
+    /* We need to set clocks back low here to talk to a device in idle */
     set_clk((unsigned int)virt, clock, MSM_SDCC_FMIN);
-#endif
 
     mmc_delay(100);
 
     /* It's not clear when we do a reset if we really have to wait for BUSY to
        appear, of if it starts off cleared because the card's not actually
        ramping up. */
-    mode = 1;
+    mode = 0;
     while(mode < 2) {
       retval = send_cxd(host, MMC_SEND_OP_COND, EMMC_OCR, MMC_RSP_R3 | MMC_CMD_BCR, response);
       if(!retval) {
 	dmesg("wpthis - CMD1 returned: 0x%08x\n", response[0]);
 	switch(mode) {
 	case 0:
-	  // waiting for busy to appear
-	  if(response[0] & OCR_BUSY) {
+	  // waiting for busy to appear (active low)
+	  if(response[0] & OCR_BUSY == 0) {
 	    dmesg("wpthis - card busy\n");
 	    mode++;
 	  }
 	  break;
 	case 1:
-	  // waiting for busy to clear
-	  if((response[0] & OCR_BUSY) == 0) {
+	  // waiting for busy to clear (return high)
+	  if(response[0] & OCR_BUSY) {
 	    dmesg("wpthis - card done with init!\n");
 	    mode++;
 	  }
@@ -295,10 +293,8 @@ void have_fun(struct mmc_host *host, struct mmc_card *card, struct platform_devi
 	goto cleanup;
       }
 
-      mmc_delay(100);
+      mmc_delay(50);
     }
-
-    dmesg("wpthis - moving to ID\n");
 
     /* Next is CMD2, all input is just stuffed */
     retval = send_cxd(host, MMC_ALL_SEND_CID, 0, MMC_RSP_R2 | MMC_CMD_BCR, response);
