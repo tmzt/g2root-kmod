@@ -15,7 +15,7 @@ static int __init test_init(void) {
     printk("turning on gpio 88\n");
     gpio_set_value(88, 1);
     mdelay(100);
-    printk("turning off GP12 (#37)\n");
+    printk("turning off gpio 88\n");
     gpio_set_value(88, 0);
     printk("done.\n");
 	return 0;

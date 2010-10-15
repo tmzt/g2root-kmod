@@ -23,8 +23,7 @@ static int __init test_init(void) {
         return -EINVAL;
     }    
 
-    printk("turning off GP12 (#%d)\n", id);
-    id = 37;
+    printk("turning off vreg #%d\n", id);
     enable = 0;
     res = stupid_proc_comm(PCOM_VREG_SWITCH, &id, &enable);
     printk("result: %d\n", res);
