@@ -10,10 +10,10 @@ clean:
 
 .PHONY: all clean
 
-#obj-m += tmzt/suspend1.o
-obj-m += tmzt/resume1.o
-obj-m += tmzt/unreg2.o
-obj-m += tmzt/rereg1.o
-obj-m += tmzt/bouncereg1.o
-obj-m += tmzt/bouncepwrreg1.o
-obj-m += tmzt/smidump1.o
+#obj-m += tmzt/g2/suspend1.o
+obj-m += tmzt/g2/resume1.o
+obj-m += tmzt/g2/unreg2.o
+obj-m += tmzt/g2/rereg1.o
+obj-m += tmzt/g2/bouncereg1.o
+obj-m += tmzt/g2/bouncepwrreg1.o
+obj-m += tmzt/g2/smidump1.o
