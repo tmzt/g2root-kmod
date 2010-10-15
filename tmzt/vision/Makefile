@@ -9,3 +9,4 @@ clean:
 .PHONY: all clean
 
 obj-m += gp12off1.o
+obj-m += gpio88onoff1.o
