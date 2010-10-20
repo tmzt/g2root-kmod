@@ -1,0 +1,15 @@
+<4>[  947.159088] wlan: wl_iw_iscan_get_scan return to WE 1990 bytes APs=7
+<6>[  967.675598] capella_cm3602_ioctl cmd 1
+<6>[  967.677215] lightsensor_ioctl set value = 0
+<6>[  967.677612] lightsensor_disable
+<6>[  967.679962] lightsensor_ioctl get enabled status: 0
+<4>[  979.057342] wlan: wl_iw_iscan_get_scan return to WE 1721 bytes APs=6
+<4>[  979.146484] pm1 module loaded
+<4>[  979.146881] attempting apps sleep
+<4>[  979.147766] smsm_change_state result: 0
+<4>[  979.148345] msm_pm_wait_state result: 0
+<4>[  979.148712] A11S_PWRDOWN: 00000001
+<4>[  979.149322] A11S_SECOP: 00000004
+<4>[  979.149688] msm_sleep(): enter A11S_CLK_SLEEP_EN 0, A11S_PWRDOWN 1, smsm_get_state 20
+<6>[  979.150390] msm_sleep(): vector ea000012 32382e30 -> e51ff004 3048078
+

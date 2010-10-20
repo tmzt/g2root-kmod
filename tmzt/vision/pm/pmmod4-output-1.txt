@@ -1,0 +1,9 @@
+<4>[ 1507.783905] pm1 module loaded
+<4>[ 1507.784545] attempting apps sleep
+<4>[ 1507.784881] smsm_change_state result: 0
+<4>[ 1507.785400] msm_pm_wait_state result: 0
+<4>[ 1507.786895] A11S_PWRDOWN: 00000001
+<4>[ 1507.787261] A11S_SECOP: 00000004
+<4>[ 1507.787597] msm_sleep(): enter A11S_CLK_SLEEP_EN 0, A11S_PWRDOWN 1, smsm_get_state 20
+<6>[ 1507.788696] msm_sleep(): vector e51ff004 304e078 -> e51ff004 3054078
+<4>[ 1507.789428] pmmod: collapsed: 0

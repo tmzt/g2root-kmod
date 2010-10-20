@@ -1,0 +1,12 @@
+<4>[ 1128.525634] pm1 module loaded
+<4>[ 1128.526763] attempting apps sleep
+<4>[ 1128.527160] smsm_change_state result: 0
+<4>[ 1128.528076] msm_pm_wait_state result: 0
+<4>[ 1128.528442] A11S_PWRDOWN: 00000001
+<4>[ 1128.529052] A11S_SECOP: 00000004
+<4>[ 1128.529418] msm_sleep(): enter A11S_CLK_SLEEP_EN 0, A11S_PWRDOWN 1, smsm_get_state 20
+<6>[ 1128.530303] msm_sleep(): vector e51ff004 3048078 -> e51ff004 304e078
+<3>[ 1129.131530] msm_pm_wait_state(1, 0, 0, 0) failed 8
+<3>[ 1129.131530] msm_sleep(): invalid inital state
+<3>[ 1129.131530] msm_pm_wait_state(20, 0, 0, 0) failed 8
+<6>[ 1129.131530] msm_sleep(): msm_pm_wait_state failed, 8
