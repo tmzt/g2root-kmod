@@ -8,4 +8,7 @@ clean:
 
 .PHONY: all clean
 
-obj-m += pm1.o
+pmmod1-y += pm1.o idle1.o cache1.o
+obj-m += pmmod1.o
+
+

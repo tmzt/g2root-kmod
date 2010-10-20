@@ -14,7 +14,8 @@
 #include <mach/system.h>
 #include <asm/io.h>
 
-#include "../arch/arm/mach-msm/smd_private.h"
+//include "../arch/arm/mach-msm/smd_private.h"
+#include "smd_private1.h"
 #include "../arch/arm/mach-msm/smd_rpcrouter.h"
 #include "../arch/arm/mach-msm/acpuclock.h"
 #include "../arch/arm/mach-msm/proc_comm.h"
@@ -79,6 +80,11 @@ unsigned int magic_num;
 extern int msm_pm_collapse(void);
 extern int msm_arch_idle(void);
 extern void msm_pm_collapse_exit(void);
+
+uint32_t(*smsm_get_state)(enum smsm_state_item) = (void *)0xc0043684;
+int(*smsm_change_state)(enum smsm_state_item, uint32_t, uint32_t) = (void *)0xc0043700;
+void(*smsm_print_sleep_info)(unsigned) = (void *)0xc00447d0;
+int(*__cpu_early_init)(void) = (void *)0xc003deb8;
 
 static int
 msm_pm_wait_state(uint32_t wait_all_set, uint32_t wait_all_clear,
