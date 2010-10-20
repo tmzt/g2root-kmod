@@ -11,4 +11,7 @@ clean:
 pmmod1-y += pm1.o idle1.o cache1.o
 obj-m += pmmod1.o
 
+pmmod2-y += pm2.o idle1.o cache1.o
+obj-m += pmmod2.o
+
 

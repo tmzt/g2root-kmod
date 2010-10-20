@@ -1,0 +1,143 @@
+<4>[  790.148071] wlan: wl_iw_iscan_get_scan return to WE 2729 bytes APs=10
+<6>[  793.989074] capella_cm3602_ioctl cmd 1
+<6>[  793.989227] lightsensor_ioctl set value = 0
+<6>[  793.989349] lightsensor_disable
+<6>[  793.991149] lightsensor_ioctl get enabled status: 0
+<4>[  822.041076] wlan: wl_iw_iscan_get_scan return to WE 2120 bytes APs=8
+<4>[  834.140686] pm1 module loaded
+<4>[  834.140838] attempting apps sleep
+<4>[  834.140960] smsm_change_state result: 0
+<4>[  834.141540] msm_pm_wait_state result: 0
+<4>[  834.141754] A11S_PWRDOWN: 00000001
+<4>[  834.141876] A11S_SECOP: 00000004
+<4>[  834.141998] msm_sleep(): enter A11S_CLK_SLEEP_EN 0, A11S_PWRDOWN 1, smsm_get_state 20
+<1>[  834.142242] Unable to handle kernel NULL pointer dereference at virtual address 00000000
+<1>[  834.142486] pgd = c80ec000
+<1>[  834.142608] [00000000] *pgd=211dd031, *pte=00000000, *ppte=00000000
+<0>[  834.143157] Internal error: Oops: 17 [#1] PREEMPT
+<0>[  834.143280] last sysfs file: /sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_state
+<4>[  834.143493] Modules linked in: pmmod2(+) bcm4329
+<4>[  834.143951] CPU: 0    Tainted: G        W   (2.6.32.17-g814e0a1 #1)
+<4>[  834.144195] PC is at pm_init+0x124/0x190 [pmmod2]
+<4>[  834.144317] LR is at pm_init+0x104/0x190 [pmmod2]
+<4>[  834.144439] pc : [<bf03c124>]    lr : [<bf03c104>]    psr: 60000013
+<4>[  834.144439] sp : dd0dbf48  ip : 00000000  fp : 00000000
+<4>[  834.144805] r10: 00000000  r9 : dd0da000  r8 : c0030128
+<4>[  834.145019] r7 : 00014750  r6 : 00000000  r5 : 00000000  r4 : 03039078
+<4>[  834.145141] r3 : e51ff004  r2 : aaaa1111  r1 : bf039469  r0 : bf0394b6
+<4>[  834.145355] Flags: nZCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
+<4>[  834.145599] Control: 10c57c7d  Table: 0c0ec059  DAC: 00000015
+<4>[  834.145721] 
+<4>[  834.145721] SP: 0xdd0dbec8:
+<4>[  834.146057] bec8  de045de0 3820205b 312e3433 39393134 00205d38 c00da0d8 bf03954c dd0b7720
+<4>[  834.147125] bee8  bf03954c ffffffff dd0dbf34 00000000 00014750 c002faac bf0394b6 bf039469
+<4>[  834.148315] bf08  aaaa1111 e51ff004 03039078 00000000 00000000 00014750 c0030128 dd0da000
+<4>[  834.149505] bf28  00000000 00000000 00000000 dd0dbf48 bf03c104 bf03c124 60000013 ffffffff
+<4>[  834.150604] bf48  bf03c000 00000000 dd0da000 bf03c000 00000000 c002f3bc bf03954c 00000000
+<4>[  834.151794] bf68  001ec008 00014750 c0030128 bf03954c 00000000 001ec008 00014750 c00ac0e8
+<4>[  834.152893] bf88  40000000 00014750 001ec008 00014750 00000001 0019eba1 00000080 c002ff80
+<4>[  834.154083] bfa8  00014750 00000001 40000000 00014750 001ec008 be9f9e12 00014750 00000001
+<4>[  834.155181] 
+<4>[  834.155181] R3: 0xe51fef84:
+<4>[  834.155517] ef84  33080a0a 0a43300a 0a534340 00000003 00060104 0b0e0007 0909090a 00060104
+<4>[  834.156616] efa4  11080007 09130c0d 000d0204 00c00010 410e4441 090a0847 43134009 0000000b
+<4>[  834.157806] efc4  00000005 00030104 0b020004 05010409 38000700 0c0b090f 2d020408 00023700
+<4>[  834.158905] efe4  0f0b4338 36093309 09833132 09ff0a93 09333810 850c0d81 fa91810d 53033812
+<4>[  834.160095] f004  0a09220a 00020102 03020200 00020102 03020200 00010102 01020202 03000002
+<4>[  834.161193] f024  00000302 00000006 00020102 01030100 00020102 03030300 000c0104 0a18000e
+<4>[  834.162384] f044  09132113 090c1711 04090b09 0e000c01 23336000 0b330d31 090b0b13 010264fa
+<4>[  834.163574] f064  02000002 01020302 02020001 0000000f 00070104 0a020108 09090909 08010409
+<4>[  834.164794] 
+<4>[  834.164794] R8: 0xc00300a8:
+<4>[  834.165008] 00a8  e24fee13 3798f107 e28d1008 e3a08000 e357080f e2270000 2a0010b3 ea019c4c
+<4>[  834.166229] 00c8  e1a02007 e28d1008 e3a00000 eb00060b e28fe014 e1a07000 e28d1008 e3570e17
+<4>[  834.167327] 00e8  3891000f 3798f107 eaffffef e5ad0008 e1a02007 e1a0100d e3a00001 eb0005ff
+<4>[  834.168518] 0108  eaffffb1 e1a00000 e1a00000 e1a00000 e1a00000 e1a00000 c0559ce8 c00307a4
+<4>[  834.169708] 0128  c008c89c c0085194 c0030710 c00e1070 c00e0e48 c00dea44 c00de7a0 c00971fc
+<4>[  834.170898] 0148  c00dea5c c00ebe88 c00eb83c c0030720 c00df340 c00971fc c00ebbfc c00df248
+<4>[  834.171997] 0168  c00a8a7c c00971fc c00971fc c00dff78 c008ba74 c00f9e78 c00971fc c00a8a14
+<4>[  834.173187] 0188  c00a87d0 c00971fc c008a908 c00971fc c00971fc c008ccd4 c00971fc c00971fc
+<4>[  834.174377] 
+<4>[  834.174377] R9: 0xdd0d9f80:
+<4>[  834.174591] 9f80  09870412 000028b2 00040412 000028b3 00040412 000028b4 00040412 000028b5
+<4>[  834.175781] 9fa0  01f20413 00001be2 05b00414 00001be2 06ec0414 00001d5a 05c50414 00001df3
+<4>[  834.176971] 9fc0  06830414 00001f8f 0bd00414 00002130 09b90414 000021e3 01840414 0000228b
+<4>[  834.178039] 9fe0  01940414 000025b3 01940414 00002688 0afb0414 00002760 0afb0414 0000276e
+<4>[  834.179229] a000  00000000 00000002 00000000 c8c92160 c056f1a8 00000000 00000017 c8c92160
+<4>[  834.180419] a020  c056ec98 dd0da000 c8c92410 dd2ef2a0 ca049560 00000000 dd0dbdcc dd0dbd78
+<4>[  834.181518] a040  c03f3650 00000000 00000000 00000000 00000000 00000000 00010000 00000000
+<4>[  834.182739] a060  001eb4c0 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+<0>[  834.183929] Process busybox (pid: 4945, stack limit = 0xdd0da2f0)
+<0>[  834.184051] Stack: (0xdd0dbf48 to 0xdd0dc000)
+<0>[  834.184295] bf40:                   bf03c000 00000000 dd0da000 bf03c000 00000000 c002f3bc
+<0>[  834.184509] bf60: bf03954c 00000000 001ec008 00014750 c0030128 bf03954c 00000000 001ec008
+<0>[  834.184661] bf80: 00014750 c00ac0e8 40000000 00014750 001ec008 00014750 00000001 0019eba1
+<0>[  834.184906] bfa0: 00000080 c002ff80 00014750 00000001 40000000 00014750 001ec008 be9f9e12
+<0>[  834.185119] bfc0: 00014750 00000001 0019eba1 00000080 001ec008 00000000 be9f9e12 00000000
+<0>[  834.185272] bfe0: be9f9b00 be9f9af0 0001ba30 00009370 20000010 40000000 00000000 00000000
+<4>[  834.185516] [<bf03c124>] (pm_init+0x124/0x190 [pmmod2]) from [<c002f3bc>] (do_one_initcall+0x5c/0x1b4)
+<4>[  834.185791] [<c002f3bc>] (do_one_initcall+0x5c/0x1b4) from [<c00ac0e8>] (sys_init_module+0xb0/0x1dc)
+<4>[  834.186035] [<c00ac0e8>] (sys_init_module+0xb0/0x1dc) from [<c002ff80>] (ret_fast_syscall+0x0/0x2c)
+<0>[  834.186248] Code: e5832000 e59f3068 e503280b e59f3064 (e89c0006) 
+<4>[  834.188323] ---[ end trace da227214a82491b9 ]---
+<0>[  834.188568] Kernel panic - not syncing: Fatal exception
+<4>[  834.188720] [<c0035ef0>] (unwind_backtrace+0x0/0xd8) from [<c03f2f60>] (panic+0x58/0x128)
+<4>[  834.188964] [<c03f2f60>] (panic+0x58/0x128) from [<c0034120>] (die+0x174/0x1a0)
+<4>[  834.189147] [<c0034120>] (die+0x174/0x1a0) from [<c0036e80>] (__do_kernel_fault+0x64/0x74)
+<4>[  834.189392] [<c0036e80>] (__do_kernel_fault+0x64/0x74) from [<c0037064>] (do_page_fault+0x1d4/0x1ec)
+<4>[  834.189636] [<c0037064>] (do_page_fault+0x1d4/0x1ec) from [<c002f300>] (do_DataAbort+0x34/0x94)
+<4>[  834.189880] [<c002f300>] (do_DataAbort+0x34/0x94) from [<c002faac>] (__dabt_svc+0x4c/0x60)
+<4>[  834.190032] Exception stack(0xdd0dbf00 to 0xdd0dbf48)
+<4>[  834.190246] bf00: bf0394b6 bf039469 aaaa1111 e51ff004 03039078 00000000 00000000 00014750
+<4>[  834.190490] bf20: c0030128 dd0da000 00000000 00000000 00000000 dd0dbf48 bf03c104 bf03c124
+<4>[  834.190643] bf40: 60000013 ffffffff
+<4>[  834.190856] [<c002faac>] (__dabt_svc+0x4c/0x60) from [<bf03c124>] (pm_init+0x124/0x190 [pmmod2])
+<4>[  834.191040] [<bf03c124>] (pm_init+0x124/0x190 [pmmod2]) from [<c002f3bc>] (do_one_initcall+0x5c/0x1b4)
+<4>[  834.191284] [<c002f3bc>] (do_one_initcall+0x5c/0x1b4) from [<c00ac0e8>] (sys_init_module+0xb0/0x1dc)
+<4>[  834.191528] [<c00ac0e8>] (sys_init_module+0xb0/0x1dc) from [<c002ff80>] (ret_fast_syscall+0x0/0x2c)
+<0>[  834.191772] Rebooting in 5 seconds..
+<0>[  839.187072] Restarting Linux version 2.6.32.17-g814e0a1 (htc-kernel@and18-2) (gcc version 4.4.0 (GCC) ) #1 PREEMPT Wed Sep 15 14:27:28 CST 2010
+<0>[  839.187072] 
+<6>[  839.187713] from msm_pm_restart
+<3>[  839.187835] BUG: scheduling while atomic: busybox/4945/0x00000002
+<4>[  839.187957] Modules linked in: pmmod2(+) bcm4329
+<4>[  839.188537] [<c0035ef0>] (unwind_backtrace+0x0/0xd8) from [<c03f3214>] (schedule+0x78/0x540)
+<4>[  839.188690] [<c03f3214>] (schedule+0x78/0x540) from [<c03f3eac>] (schedule_timeout+0x1e8/0x224)
+<4>[  839.188934] [<c03f3eac>] (schedule_timeout+0x1e8/0x224) from [<c00699c0>] (wait_rmt_final_call_back+0x88/0xf4)
+<4>[  839.189178] [<c00699c0>] (wait_rmt_final_call_back+0x88/0xf4) from [<c0061714>] (msm_pm_restart+0x4c/0xb4)
+<4>[  839.189453] [<c0061714>] (msm_pm_restart+0x4c/0xb4) from [<c003102c>] (machine_restart+0x18/0x20)
+<4>[  839.189697] [<c003102c>] (machine_restart+0x18/0x20) from [<c03f2fe8>] (panic+0xe0/0x128)
+<4>[  839.189941] [<c03f2fe8>] (panic+0xe0/0x128) from [<c0034120>] (die+0x174/0x1a0)
+<4>[  839.190063] [<c0034120>] (die+0x174/0x1a0) from [<c0036e80>] (__do_kernel_fault+0x64/0x74)
+<4>[  839.190307] [<c0036e80>] (__do_kernel_fault+0x64/0x74) from [<c0037064>] (do_page_fault+0x1d4/0x1ec)
+<4>[  839.190551] [<c0037064>] (do_page_fault+0x1d4/0x1ec) from [<c002f300>] (do_DataAbort+0x34/0x94)
+<4>[  839.190704] [<c002f300>] (do_DataAbort+0x34/0x94) from [<c002faac>] (__dabt_svc+0x4c/0x60)
+<4>[  839.190948] Exception stack(0xdd0dbf00 to 0xdd0dbf48)
+<4>[  839.191162] bf00: bf0394b6 bf039469 aaaa1111 e51ff004 03039078 00000000 00000000 00014750
+<4>[  839.191314] bf20: c0030128 dd0da000 00000000 00000000 00000000 dd0dbf48 bf03c104 bf03c124
+<4>[  839.191558] bf40: 60000013 ffffffff
+<4>[  839.191680] [<c002faac>] (__dabt_svc+0x4c/0x60) from [<bf03c124>] (pm_init+0x124/0x190 [pmmod2])
+<4>[  839.191925] [<bf03c124>] (pm_init+0x124/0x190 [pmmod2]) from [<c002f3bc>] (do_one_initcall+0x5c/0x1b4)
+<4>[  839.192169] [<c002f3bc>] (do_one_initcall+0x5c/0x1b4) from [<c00ac0e8>] (sys_init_module+0xb0/0x1dc)
+<4>[  839.192413] [<c00ac0e8>] (sys_init_module+0xb0/0x1dc) from [<c002ff80>] (ret_fast_syscall+0x0/0x2c)
+<6>[  840.091125] handle_rmt_storage_call: rmt_storage open event
+<6>[  840.091369] open partition /boot/modem_fs1
+<6>[  840.091400] 
+<6>[  840.092102] rmt_storage_ioctl: wait for request ioctl
+<6>[  840.092407] handle_rmt_storage_call: register force sync callback
+<6>[  840.093170] handle_rmt_storage_call: register sync status callback
+<6>[  840.093841] handle_rmt_storage_call: rmt_storage register callback event
+<6>[  840.094024] rmt_storage_ioctl: wait for request ioctl
+<6>[  840.094879] handle_rmt_storage_call: rmt_storage open event
+<6>[  840.095275] open partition /boot/modem_fs2
+<6>[  840.095306] 
+<6>[  840.096954] handle_rmt_storage_call: rmt_storage register callback event
+<6>[  840.097717] rmt_storage_ioctl: wait for request ioctl
+<6>[  840.098449] rmt_storage_ioctl: wait for request ioctl
+<6>[  840.098907] handle_rmt_storage_call: rmt_storage write iovec event
+<6>[  840.099548] handle = 2
+<6>[  840.099884] sec_addr = 0, data_addr = 700000, num_sec = 6143
+<6>[  840.100524] sec_addr = 6143, data_addr = 9ffe00, num_sec = 1
+<6>[  840.100891] iovec transfer count = 2
+<6>[  840.100921] 
+<6>[  840.102264] rmt_storage_ioctl: wait for request ioctl
