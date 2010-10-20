@@ -20,3 +20,6 @@ obj-m += pmmod3.o
 pmmod4-y += pm4.o idle1.o cache1.o
 obj-m += pmmod4.o
 
+pmmod5-y += pm5.o idle1.o cache1.o
+obj-m += pmmod5.o
+

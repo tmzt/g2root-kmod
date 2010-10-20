@@ -1,0 +1,4 @@
+<4>[ 3440.524108] pm1 module loaded
+<4>[ 3440.524749] attempting apps sleep
+<4>[ 3440.525115] smsm_set_sleep_duration result: 0
+<4>[ 3440.525451] smsm_change_state result: 0

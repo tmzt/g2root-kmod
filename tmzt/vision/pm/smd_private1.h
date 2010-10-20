@@ -160,7 +160,7 @@ enum smsm_state_item {
 void *smem_alloc(unsigned id, unsigned size);
 //int smsm_change_state(enum smsm_state_item item, uint32_t clear_mask, uint32_t set_mask);
 //uint32_t smsm_get_state(enum smsm_state_item item);
-int smsm_set_sleep_duration(uint32_t delay);
+//int smsm_set_sleep_duration(uint32_t delay);
 int smsm_set_sleep_limit(uint32_t sleep_limit);
 //void smsm_print_sleep_info(unsigned wakeup_reason_only);
 
