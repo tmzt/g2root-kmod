@@ -20,7 +20,7 @@
 #ifndef __PMIC_H_
 #define __PMIC_H_
 
-#include <common.h>
+//include <common.h>
 
 
 /* PMIC serial interface control registers */

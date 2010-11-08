@@ -27,8 +27,10 @@
  * and the slave is ready to accept commands.
  */
 
-#include <common.h>
-#include <asm/arch/ssbi2.h>
+//include <common.h>
+//include <asm/arch/ssbi2.h>
+
+#include "ssbi2.h"
 
 /*SSBI2 register descriptor for pmic arbiter1 */
 static struct ssbi2_regs pa1_ssbi2_regs = {
@@ -149,3 +151,6 @@ int ssbi2_write(enum ssbi2_slave id, u8 *buffer, u32 length, u32 addr)
 	}
 	return 0;
 }
+
+MODULE_EXPORT(ssbi2_read);
+MODULE_EXPORT(ssbi2_write);

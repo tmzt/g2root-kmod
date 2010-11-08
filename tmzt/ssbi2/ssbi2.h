@@ -20,7 +20,7 @@
 #ifndef __SSBI2_H_
 #define __SSBI2_H_
 
-#include <common.h>
+//include <common.h>
 
 /* PMIC arbiter1 SSBI registers. */
 #define PA1_SSBI2_CMD (0x00500000)

@@ -26,10 +26,12 @@
  * various functions on the PMIC.
  */
 
-#include <common.h>
-#include <asm/arch/ssbi2.h>
-#include <asm/arch/pmic.h>
+//include <common.h>
+//include <asm/arch/ssbi2.h>
+//include <asm/arch/pmic.h>
 
+#include <ssbi2.h>
+#include <pmic.h>
 
 /*
  * Read from the control registers on PMIC via the SSBI2 interface.
@@ -208,3 +210,8 @@ int usb_vbus_off(void)
 
 	return 0;
 }
+
+MODULE_EXPORT(pm8901_read);
+MODULE_EXPORT(pm8901_write);
+MODULE_EXPORT(pm8901_mpp_config);
+
