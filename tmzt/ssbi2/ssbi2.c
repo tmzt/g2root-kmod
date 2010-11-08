@@ -161,18 +161,31 @@ static int __init ssbi2_init(void) {
     void *pa1_ssbi2_base = 0;
     void *pa2_ssbi2_base = 0;
 
+    #define MSM_PMIC_SSBI_PHYS    0xAD900000
+
+    printk("loaded ssbi2\n");
+
     pa1_ssbi2_base = ioremap(PA1_SSBI2_CMD, SZ_4K);
-    pa2_ssbi2_base = ioremap(PA2_SSBI2_CMD, SZ_4K);
+    //pa2_ssbi2_base = ioremap(PA2_SSBI2_CMD, SZ_4K);
+    pa2_ssbi2_base = ioremap(MSM_PMIC_SSBI_PHYS, SZ_4K);
+
+    printk("ssbi2: pa2_ssbi2_phys (MSM_PMIC_SSBI_PHYS): %08x\n", (MSM_PMIC_SSBI_PHYS));
+    printk("ssbi2: pa2_ssbi2_base: %p\n", pa2_ssbi2_base);
 
     pa1_ssbi2_regs.cmd = (u32)pa1_ssbi2_base;
     pa1_ssbi2_regs.status = (u32)pa1_ssbi2_base + 4;
 
-    pa2_ssbi2_regs.cmd = (u32)pa1_ssbi2_base;
-    pa2_ssbi2_regs.status = (u32)pa1_ssbi2_base + 4;
+    pa2_ssbi2_regs.cmd = (u32)pa2_ssbi2_base;
+    pa2_ssbi2_regs.status = (u32)pa2_ssbi2_base + 4;
     return 0;
 }
 
+static void __exit ssbi2_exit(void) {
+    printk("unloaded ssbi2\n");
+};
+
 module_init(ssbi2_init);
+module_exit(ssbi2_exit);
 
 EXPORT_SYMBOL(ssbi2_read);
 EXPORT_SYMBOL(ssbi2_write);
