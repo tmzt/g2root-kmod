@@ -8,7 +8,7 @@
 static void mpp_test(void) {
 
     u8 mpp;
-    u8 val;
+    u8 val = 0x0;
     u8 type;
     u8 level;
     u8 control;
@@ -22,14 +22,14 @@ static void mpp_test(void) {
 */
 
     for (mpp = 0; mpp < 4; mpp++) {
-        val = pm8901_read(&val, 1, PM8901_MPP_CONTROL(mpp));
+        pm8901_read(&val, 1, PM8901_MPP_CONTROL(mpp));
         type = (val & PM8901_MPP_TYPE___M) >> PM8901_MPP_TYPE___S;
         level = (val & PM8901_MPP_CONFIG_LVL___M) >> PM8901_MPP_CONFIG_LVL___S;
         control = (val & PM8901_MPP_CONFIG_CTL___M) >> PM8901_MPP_CONFIG_CTL___S;
         printk("mpp: %d\n", mpp);
-        printk("val: %08x\n", val);
-        printk("type: %08x\n", type);
-        printk("control: %08x\n", control);
+        printk("val: %.8x\n", val);
+        printk("type: %.8x\n", type);
+        printk("control: %.8x\n", control);
     };
 }
 
