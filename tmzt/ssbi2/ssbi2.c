@@ -157,3 +157,5 @@ int ssbi2_write(enum ssbi2_slave id, u8 *buffer, u32 length, u32 addr)
 
 EXPORT_SYMBOL(ssbi2_read);
 EXPORT_SYMBOL(ssbi2_write);
+
+MODULE_LICENSE("GPL");

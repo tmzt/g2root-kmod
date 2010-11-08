@@ -217,3 +217,5 @@ int usb_vbus_off(void)
 EXPORT_SYMBOL(pm8901_read);
 EXPORT_SYMBOL(pm8901_write);
 EXPORT_SYMBOL(pm8901_mpp_config);
+
+MODULE_LICENSE("GPL");
