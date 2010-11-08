@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <asm/io.h>
 #include <asm/delay.h>
+#include <asm/page.h>
 #include "ssbi2.h"
 
 /*SSBI2 register descriptor for pmic arbiter1 */
@@ -154,6 +155,24 @@ int ssbi2_write(enum ssbi2_slave id, u8 *buffer, u32 length, u32 addr)
 	}
 	return 0;
 }
+
+static int __init ssbi2_init(void) {
+
+    void *pa1_ssbi2_base = 0;
+    void *pa2_ssbi2_base = 0;
+
+    pa1_ssbi2_base = ioremap(PA1_SSBI2_CMD, SZ_4K);
+    pa2_ssbi2_base = ioremap(PA2_SSBI2_CMD, SZ_4K);
+
+    pa1_ssbi2_regs.cmd = (u32)pa1_ssbi2_base;
+    pa1_ssbi2_regs.status = (u32)pa1_ssbi2_base + 4;
+
+    pa2_ssbi2_regs.cmd = (u32)pa1_ssbi2_base;
+    pa2_ssbi2_regs.status = (u32)pa1_ssbi2_base + 4;
+    return 0;
+}
+
+module_init(ssbi2_init);
 
 EXPORT_SYMBOL(ssbi2_read);
 EXPORT_SYMBOL(ssbi2_write);
