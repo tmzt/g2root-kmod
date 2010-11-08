@@ -173,10 +173,10 @@ static int __init ssbi2_init(void) {
     printk("ssbi2: pa2_ssbi2_base: %p\n", pa2_ssbi2_base);
 
     pa1_ssbi2_regs.cmd = (u32)pa1_ssbi2_base;
-    pa1_ssbi2_regs.status = (u32)pa1_ssbi2_base + 4;
+    pa1_ssbi2_regs.status = (u32)pa1_ssbi2_base + 0x14;
 
     pa2_ssbi2_regs.cmd = (u32)pa2_ssbi2_base;
-    pa2_ssbi2_regs.status = (u32)pa2_ssbi2_base + 4;
+    pa2_ssbi2_regs.status = (u32)pa2_ssbi2_base + 0x14;
     return 0;
 }
 
