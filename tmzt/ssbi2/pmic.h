@@ -109,4 +109,9 @@
 int usb_vbus_on(void);
 int usb_vbus_off(void);
 
+int pm8901_read(u8 *buffer, u32 length, u32 slave_addr);
+int pm8901_write(u8 *buffer, u32 length, u32 slave_addr);
+
+
+
 #endif /* __PMIC_H_ */
