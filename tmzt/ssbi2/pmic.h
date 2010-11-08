@@ -21,6 +21,8 @@
 #define __PMIC_H_
 
 //include <common.h>
+#include <stddef.h>
+#include <asm/types.h>
 
 
 /* PMIC serial interface control registers */
@@ -29,7 +31,7 @@
 
 /*  MPP Control registers */
 #define PM8901_MPP_CONTROL_BASE (0x27)
-#define PM8901_MPP_CONTROL(n) (PM8901_MPP_CONTROL_BASE  (n))
+#define PM8901_MPP_CONTROL(n) (PM8901_MPP_CONTROL_BASE + (n))
 
 /*  MPP Type */
 #define PM8901_MPP_TYPE___M (0xE0)
@@ -81,7 +83,7 @@
 
 /*  Pin mask resource registers */
 #define PM8901_PIN_MASK_RESOURCE_BASE (0x0A6)
-#define PM8901_PIN_MASK_RESOURCE(n) (PM8901_PIN_MASK_RESOURCE_BASE  (n))
+#define PM8901_PIN_MASK_RESOURCE(n) (PM8901_PIN_MASK_RESOURCE_BASE + (n))
 
 #define PM8901_REG_PMR_STATE___M     (0x60)
 #define PM8901_REG_PMR_STATE___S     (5)

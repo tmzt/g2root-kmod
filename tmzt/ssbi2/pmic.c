@@ -30,8 +30,11 @@
 //include <asm/arch/ssbi2.h>
 //include <asm/arch/pmic.h>
 
-#include <ssbi2.h>
-#include <pmic.h>
+#include <linux/module.h>
+#include <asm/io.h>
+#include <asm/delay.h>
+#include "ssbi2.h"
+#include "pmic.h"
 
 /*
  * Read from the control registers on PMIC via the SSBI2 interface.
@@ -159,17 +162,17 @@ int usb_vbus_on(void)
 	val = (OTG_SW_WIRE << PM8901_OTG_CONTROL_SW_EN___S);
 
 	if (pm8901_write(&val, 1, PM8901_OTG_CONTROL) < 0) {
-		printf("Unable to turn on OTG VBUS switch\n");
+		printk("Unable to turn on OTG VBUS switch\n");
 		return -1;
 	}
 
 	if (pm8901_5vboost_on() < 0) {
-		printf("Unable to turn on 5V boost\n");
+		printk("Unable to turn on 5V boost\n");
 		return -1;
 	}
 
 	if (pm8901_pmr17_on() < 0) {
-		printf("Unable to turn on USB VBUS regulator\n");
+		printk("Unable to turn on USB VBUS regulator\n");
 		return -1;
 	}
 
@@ -194,24 +197,23 @@ int usb_vbus_off(void)
 	val |= (1 << PM8901_OTG_CONTROL_PD_EN___S);
 
 	if (pm8901_write(&val, 1, PM8901_OTG_CONTROL) < 0) {
-		printf("unable to turn off PM8901 OTG VBUS switch\n");
+		printk("unable to turn off PM8901 OTG VBUS switch\n");
 		return -1;
 	}
 
 	if (pm8901_pmr17_off() < 0) {
-		printf("unable to turn off PM8901 regulator\n");
+		printk("unable to turn off PM8901 regulator\n");
 		return -1;
 	}
 
 	if (pm8901_5vboost_off() < 0) {
-		printf("unable to turn off 5V boost \n");
+		printk("unable to turn off 5V boost \n");
 		return -1;
 	}
 
 	return 0;
 }
 
-MODULE_EXPORT(pm8901_read);
-MODULE_EXPORT(pm8901_write);
-MODULE_EXPORT(pm8901_mpp_config);
-
+EXPORT_SYMBOL(pm8901_read);
+EXPORT_SYMBOL(pm8901_write);
+EXPORT_SYMBOL(pm8901_mpp_config);

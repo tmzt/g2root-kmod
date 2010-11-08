@@ -21,6 +21,9 @@
 #define __SSBI2_H_
 
 //include <common.h>
+#include <stddef.h>
+#include <asm/types.h>
+#include "fake.h"
 
 /* PMIC arbiter1 SSBI registers. */
 #define PA1_SSBI2_CMD (0x00500000)

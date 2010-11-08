@@ -8,4 +8,4 @@ clean:
 
 .PHONY: all clean
 
-obj-M += ssbi2.o pmic.o
+obj-m += ssbi2.o pmic.o

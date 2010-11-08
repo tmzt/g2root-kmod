@@ -30,6 +30,9 @@
 //include <common.h>
 //include <asm/arch/ssbi2.h>
 
+#include <linux/module.h>
+#include <asm/io.h>
+#include <asm/delay.h>
 #include "ssbi2.h"
 
 /*SSBI2 register descriptor for pmic arbiter1 */
@@ -98,7 +101,7 @@ int ssbi2_read(enum ssbi2_slave id, u8 *buffer, u32 length, u32 addr)
 		while (!((temp = IO_READ32(regs->status)) &
 				SSBI2_RD_STATUS__TRANS_DONE___M)) {
 			if (--timeout == 0) {
-				printf("%s: SSBI read failed , timeout\n", __func__);
+				printk("%s: SSBI read failed , timeout\n", __func__);
 				return -1;
 			}
 			udelay(1);
@@ -141,16 +144,16 @@ int ssbi2_write(enum ssbi2_slave id, u8 *buffer, u32 length, u32 addr)
 		while (!((temp = IO_READ32(regs->status)) &
 				SSBI2_RD_STATUS__TRANS_DONE___M)) {
 			if (--timeout == 0) {
-				printf("%s: SSBI write failed, timeout\n", __func__);
+				printk("%s: SSBI write failed, timeout\n", __func__);
 				return -1;
 			}
 			udelay(1);
 		}
 		length--;
-		buf;
+		buf++;
 	}
 	return 0;
 }
 
-MODULE_EXPORT(ssbi2_read);
-MODULE_EXPORT(ssbi2_write);
+EXPORT_SYMBOL(ssbi2_read);
+EXPORT_SYMBOL(ssbi2_write);
