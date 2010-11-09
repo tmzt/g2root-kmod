@@ -27,9 +27,9 @@ static void mpp_test(void) {
         level = (val & PM8901_MPP_CONFIG_LVL___M) >> PM8901_MPP_CONFIG_LVL___S;
         control = (val & PM8901_MPP_CONFIG_CTL___M) >> PM8901_MPP_CONFIG_CTL___S;
         printk("mpp: %d\n", mpp);
-        printk("val: %.8x\n", val);
-        printk("type: %.8x\n", type);
-        printk("control: %.8x\n", control);
+        printk("val: %u\n", val);
+        printk("type: %u\n", type);
+        printk("control: %u\n", control);
     };
 }
 
