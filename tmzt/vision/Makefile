@@ -10,3 +10,4 @@ clean:
 
 obj-m += gpgenoff1.o
 obj-m += gpio88onoff1.o
+obj-m += gpio88mode1.o
