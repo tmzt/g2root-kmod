@@ -13,3 +13,4 @@ obj-m += gpio88onoff1.o
 obj-m += gpio88mode1.o
 obj-m += gpio88mode2.o
 obj-m += gpio88mode3.o
+obj-m += bouncemode1.o
