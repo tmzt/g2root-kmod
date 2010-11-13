@@ -2,7 +2,6 @@
  *  linux/drivers/mmc/host/msmsdcc.h - QCT MSM7K SDC Controller
  *
  *  Copyright (C) 2008 Google, All Rights Reserved.
- *  Copyright (c) 2009, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +13,11 @@
 #ifndef _MSM_SDCC_H
 #define _MSM_SDCC_H
 
+#define MSMSDCC_CRCI_SDC1	6
+#define MSMSDCC_CRCI_SDC2	7
+#define MSMSDCC_CRCI_SDC3	12
+#define MSMSDCC_CRCI_SDC4	13
+
 #define MMCIPOWER		0x000
 #define MCI_PWR_OFF		0x00
 #define MCI_PWR_UP		0x02
@@ -23,12 +27,13 @@
 #define MMCICLOCK		0x004
 #define MCI_CLK_ENABLE		(1 << 8)
 #define MCI_CLK_PWRSAVE		(1 << 9)
+#define MCI_CLK_WIDEBUS         (1 << 10)
 #define MCI_CLK_WIDEBUS_1	(0 << 10)
 #define MCI_CLK_WIDEBUS_4	(2 << 10)
 #define MCI_CLK_WIDEBUS_8	(3 << 10)
 #define MCI_CLK_FLOWENA		(1 << 12)
 #define MCI_CLK_INVERTOUT	(1 << 13)
-#define MCI_CLK_SELECTIN	(1 << 15)
+#define MCI_CLK_SELECTIN	(1 << 14)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
@@ -84,7 +89,7 @@
 #define MCI_SDIOINTR		(1 << 22)
 #define MCI_PROGDONE		(1 << 23)
 #define MCI_ATACMDCOMPL		(1 << 24)
-#define MCI_SDIOINTROPE		(1 << 25)
+#define MCI_SDIOINTOPER		(1 << 25)
 #define MCI_CCSTIMEOUT		(1 << 26)
 
 #define MMCICLEAR		0x038
@@ -100,6 +105,7 @@
 #define MCI_STARTBITERRCLR	(1 << 9)
 #define MCI_DATABLOCKENDCLR	(1 << 10)
 
+
 #define MCI_SDIOINTRCLR		(1 << 22)
 #define MCI_PROGDONECLR		(1 << 23)
 #define MCI_ATACMDCOMPLCLR	(1 << 24)
@@ -113,7 +119,6 @@
 	MCI_STARTBITERRCLR|MCI_DATABLOCKENDCLR|MCI_SDIOINTRCLR|	\
 	MCI_SDIOINTROPECLR|MCI_PROGDONECLR|MCI_ATACMDCOMPLCLR|	\
 	MCI_CCSTIMEOUTCLR)
-
 #define MMCIMASK0		0x03c
 #define MCI_CMDCRCFAILMASK	(1 << 0)
 #define MCI_DATACRCFAILMASK	(1 << 1)
@@ -151,13 +156,7 @@
 #define MCI_IRQENABLE	\
 	(MCI_CMDCRCFAILMASK|MCI_DATACRCFAILMASK|MCI_CMDTIMEOUTMASK|	\
 	MCI_DATATIMEOUTMASK|MCI_TXUNDERRUNMASK|MCI_RXOVERRUNMASK|	\
-	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK|MCI_DATAENDMASK|MCI_PROGDONEMASK)
-
-#define MCI_IRQ_PIO 	\
-	(MCI_RXDATAAVLBLMASK | MCI_TXDATAAVLBLMASK | 	\
-	MCI_RXFIFOEMPTYMASK | MCI_TXFIFOEMPTYMASK | MCI_RXFIFOFULLMASK |\
-	MCI_TXFIFOFULLMASK | MCI_RXFIFOHALFFULLMASK |			\
-	MCI_TXFIFOHALFEMPTYMASK | MCI_RXACTIVEMASK | MCI_TXACTIVEMASK)
+	MCI_CMDRESPENDMASK|MCI_CMDSENTMASK|MCI_DATAENDMASK)
 
 /*
  * The size of the FIFO in bytes.
@@ -167,8 +166,6 @@
 #define MCI_FIFOHALFSIZE (MCI_FIFOSIZE / 2)
 
 #define NR_SG		32
-
-#define MSM_MMC_IDLE_TIMEOUT	10000 /* msec */
 
 struct clk;
 
@@ -192,6 +189,7 @@ struct msmsdcc_dma_data {
 	int				channel;
 	struct msmsdcc_host		*host;
 	int				busy; /* Set if DM is busy */
+	int				active;
 	unsigned int 			result;
 	struct msm_dmov_errdata 	*err;
 };
@@ -213,12 +211,22 @@ struct msmsdcc_curr_req {
 	int			user_pages;
 };
 
+struct msmsdcc_stats {
+	unsigned int reqs;
+	unsigned int cmds;
+	unsigned int cmdpoll_hits;
+	unsigned int cmdpoll_misses;
+};
+
 struct msmsdcc_host {
 	struct resource		*irqres;
+	struct resource		*cmd_irqres;
+	struct resource		*pio_irqres;
 	struct resource		*memres;
 	struct resource		*dmares;
 	void __iomem		*base;
 	int			pdev_id;
+	unsigned int		stat_irq;
 
 	struct msmsdcc_curr_req	curr;
 
@@ -226,6 +234,7 @@ struct msmsdcc_host {
 	struct clk		*clk;		/* main MMC bus clock */
 	struct clk		*pclk;		/* SDCC peripheral bus clock */
 	unsigned int		clks_on;	/* set if clocks are enabled */
+	struct timer_list	busclk_timer;
 
 	unsigned int		eject;		/* eject state */
 
@@ -235,35 +244,41 @@ struct msmsdcc_host {
 	unsigned int		pclk_rate;
 
 	u32			pwr;
+	u32			saved_irq0mask;	/* MMCIMASK0 reg value */
 	struct mmc_platform_data *plat;
 
+	struct timer_list	timer;
 	unsigned int		oldstat;
 
 	struct msmsdcc_dma_data	dma;
 	struct msmsdcc_pio_data	pio;
-
+	int			cmdpoll;
+	struct msmsdcc_stats	stats;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 	int polling_enabled;
 #endif
 
+#ifdef CONFIG_MMC_MSM7X00A_RESUME_IN_WQ
+	struct work_struct	resume_task;
+#endif
 	struct tasklet_struct 	dma_tlet;
 
+
+#ifdef CONFIG_MMC_AUTO_SUSPEND
+	unsigned long           suspended;
+#endif
 	unsigned int prog_scan;
 	unsigned int prog_enable;
-
 	/* Command parameters */
 	unsigned int		cmd_timeout;
 	unsigned int		cmd_pio_irqmask;
 	unsigned int		cmd_datactrl;
 	struct mmc_command	*cmd_cmd;
-	u32					cmd_c;
-
+	u32			cmd_c;
 	unsigned int	mci_irqenable;
 	unsigned int	dummy_52_needed;
 	unsigned int	dummy_52_state;
-	unsigned int	sdio_irq_disabled;
-	struct wake_lock	sdio_wlock;
 
 };
 
