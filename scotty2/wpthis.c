@@ -31,30 +31,21 @@ void sdcc_writel(u32 data, unsigned int address, struct clk *clock);
 int send_cxd(struct mmc_host *host, u32 opcode, u32 arg, u32 flags, u32 *response);
 int send_cxd_data(struct mmc_host *host, struct mmc_card *card, u32 opcode, u32 arg, u32 flags, u32 *response, void *buf, unsigned int len);
 
-static uint32_t emmc_wp_normal_table[] = {
-    PCOM_GPIO_CFG(88, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA),
-    PCOM_GPIO_CFG(88, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
-};
-
-static uint32_t emmc_wp_reset_table[] = {
-    PCOM_GPIO_CFG(88, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_4MA),
-    PCOM_GPIO_CFG(88, 2, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_4MA)
-};
-
 void gogogo(struct msmsdcc_host *sdcchost, struct mmc_host *mmchost, struct mmc_card *mmccard, struct clk *clk, struct clk *pclk)
 {
-    dmesg("Powering down eMMC...\n");
-    config_gpio_table(emmc_wp_reset_table, ARRAY_SIZE(emmc_wp_reset_table));
-    mdelay(1000);
+    dmesg("Powering cycling eMMC...\n");
 
-    dmesg("Powering up eMMC...\n");
-    config_gpio_table(emmc_wp_normal_table, ARRAY_SIZE(emmc_wp_normal_table));
-    mdelay(1000);
+    gpio_tlmm_config(PCOM_GPIO_CFG(88, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_4MA), 0);
+    gpio_set_value(88, 0);
+    mdelay(100);
 
-    mmchost->bus_resume_flags |= MMC_BUSRESUME_NEEDS_RESUME;
-
+    gpio_set_value(88, 1);
+    mdelay(100);
+    
     dmesg("Executing deferred resume...\n");
+    mmc_resume_host(mmchost);
     mmc_resume_bus(mmchost);
+    dmesg("Done.\n");
 
 }
 
