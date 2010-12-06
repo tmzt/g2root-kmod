@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "gopt.h"
+#include "soff_verify.h"
 
 /*
 #define INFILE "/dev/block/mmcblk0p7"
@@ -35,7 +36,7 @@
 int main(int argc, const char **argv) {
 	FILE *fdin, *fdout;
 	char ch;
-	int cid, secu_flag, sim_unlock = 0;
+	int cid, secu_flag, sim_unlock, verify = 0;
 	const char* s_secu_flag;
 	const char* s_cid;
 
@@ -46,7 +47,8 @@ int main(int argc, const char **argv) {
 		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
 		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "secu_flag" )),
 		  gopt_option( 'c', GOPT_ARG, gopt_shorts( 'c' ), gopt_longs( "cid" )),
-		  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" ))));
+		  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" )),
+		  gopt_option( 'V', 0, gopt_shorts( 'V' ), gopt_longs( "verify" ))));
 		/*
 		* there are possible options to this program, some of which have multiple names:
 		*
@@ -66,6 +68,7 @@ int main(int argc, const char **argv) {
 			fprintf( stdout, "\t-s | --secu_flag on|off: turn secu_flag on or off\n" );
 			fprintf( stdout, "\t-c | --cid <CID>: set the CID to the 8-char long CID\n" );
 			fprintf( stdout, "\t-S | --sim_unlock: remove the SIMLOCK\n" );
+			fprintf( stdout, "\t-V | --verify: verify the CID, secu_flag, SIMLOCK\n" );
 			fprintf( stdout, "\n" );
 			fprintf( stdout, "calling gfree without arguments is the same as calling it:\n" );
 			fprintf( stdout, "\tgfree --secu_flag off --sim_unlock --cid 11111111\n" );
@@ -75,6 +78,7 @@ int main(int argc, const char **argv) {
 		if( gopt( options, 'v' ) ){
 			//if any of the version options was specified
 			fprintf( stdout, "gfree version: %d.%d\n",VERSION_A,VERSION_B);
+			exit (0);
 		}
 
 		if( gopt_arg(options, 's', &s_secu_flag)){
@@ -106,6 +110,13 @@ int main(int argc, const char **argv) {
 			sim_unlock = 1;
 			fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
 		}
+
+		if( gopt( options, 'V' ) ){
+			//if any of the sim_unlock options was specified
+			verify = 1;
+			fprintf( stdout, "--verify. CID, secu_flag, SIMLOCK will be verified\n");
+		}
+
 	} else {
 		secu_flag = 2;
 		fprintf( stdout, "--secu_flag off set\n");
@@ -115,6 +126,25 @@ int main(int argc, const char **argv) {
 		sim_unlock = 1;
 		fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
 	}
+
+	// if verify is set just verify and exit
+	if (verify==1){
+		if (verify_init_device()!=0){
+			fprintf( stderr, "Error: verify could not initialize device!");
+			exit (-1);
+		}
+		if (verify_init_modem()!=0){
+			fprintf( stderr, "Error: verify could not initialize radio!");
+			exit (-1);
+		}
+		verify_set_verbose();
+		verify_cid();
+		verify_secu_flag();
+		verify_simlock();
+		verify_close_device();
+		exit (0);
+	}
+
 	fdin = fopen(INFILE, "rb");
 	if (fdin == NULL){
 		printf("Error opening input file.\n");

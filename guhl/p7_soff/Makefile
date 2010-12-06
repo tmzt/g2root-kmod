@@ -5,7 +5,7 @@ LDFLAGS = -lm
 RM      = rm -f
 
 TRG = p7_s-off
-OBJ = gopt.o p7_s-off.o
+OBJ = gopt.o soff_verify.o p7_s-off.o
 
 all: $(OBJ)
 	$(CC) $(CFLAGS) -o $(TRG) $(OBJ) $(LDFLAGS)
