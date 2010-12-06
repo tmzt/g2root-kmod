@@ -39,72 +39,82 @@ int main(int argc, const char **argv) {
 	const char* s_secu_flag;
 	const char* s_cid;
 
-	void *options= gopt_sort( & argc, argv, gopt_start(
-	  gopt_option( 'h', 0, gopt_shorts( 'h', '?' ), gopt_longs( "help", "HELP" )),
-	  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
-	  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "secu_flag" )),
-	  gopt_option( 'c', GOPT_ARG, gopt_shorts( 'c' ), gopt_longs( "cid" )),
-	  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" ))));
-	/*
-	* there are possible options to this program, some of which have multiple names:
-	*
-	* -h -? --help --HELP
-	* -v --version
-	* -s --secu_flag	(which requires an option argument on|off)
-	* -c --cid			(which requires an option 8-character string argument <CID>)
-	* -S --sim_unlock
-	*/
+	if (argc>1) {
 
-	if( gopt( options, 'h' ) ){
-		//if any of the help options was specified
-		fprintf( stdout, "gfree usage:\n" );
-		fprintf( stdout, "gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n" );
-		fprintf( stdout, "\t-h | -? | --help: display this message\n" );
-		fprintf( stdout, "\t-v | --version: display program version\n" );
-		fprintf( stdout, "\t-s | --secu_flag on|off: turn secu_flag on or off\n" );
-		fprintf( stdout, "\t-c | --cid <CID>: set the CID to the 8-char long CID\n" );
-		fprintf( stdout, "\t-S | --sim_unlock: remove the SIMLOCK\n" );
-		fprintf( stdout, "\n" );
-		fprintf( stdout, "calling gfree without arguments is the same as calling it:\n" );
-		fprintf( stdout, "\tgfree --secu_flag off --sim_unlock --cid 11111111\n" );
-		exit( 0 );
-	}
+		void *options= gopt_sort( & argc, argv, gopt_start(
+		  gopt_option( 'h', 0, gopt_shorts( 'h', '?' ), gopt_longs( "help", "HELP" )),
+		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
+		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "secu_flag" )),
+		  gopt_option( 'c', GOPT_ARG, gopt_shorts( 'c' ), gopt_longs( "cid" )),
+		  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" ))));
+		/*
+		* there are possible options to this program, some of which have multiple names:
+		*
+		* -h -? --help --HELP
+		* -v --version
+		* -s --secu_flag	(which requires an option argument on|off)
+		* -c --cid			(which requires an option 8-character string argument <CID>)
+		* -S --sim_unlock
+		*/
 
-	if( gopt( options, 'v' ) ){
-		//if any of the version options was specified
-		fprintf( stdout, "gfree version: %d.%d\n",VERSION_A,VERSION_B);
-	}
-
-	if( gopt_arg(options, 's', &s_secu_flag)){
-		// if -s or --secu_flag was specified, check s_secu_flag
-		if (strcmp(s_secu_flag, "on")==0){
-			secu_flag = 1;
-			fprintf( stdout, "--secu_flag on set\n");
-		} else if (strcmp(s_secu_flag, "off")==0){
-			secu_flag = 2;
-			fprintf( stdout, "--secu_flag off set\n");
+		if( gopt( options, 'h' ) ){
+			//if any of the help options was specified
+			fprintf( stdout, "gfree usage:\n" );
+			fprintf( stdout, "gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n" );
+			fprintf( stdout, "\t-h | -? | --help: display this message\n" );
+			fprintf( stdout, "\t-v | --version: display program version\n" );
+			fprintf( stdout, "\t-s | --secu_flag on|off: turn secu_flag on or off\n" );
+			fprintf( stdout, "\t-c | --cid <CID>: set the CID to the 8-char long CID\n" );
+			fprintf( stdout, "\t-S | --sim_unlock: remove the SIMLOCK\n" );
+			fprintf( stdout, "\n" );
+			fprintf( stdout, "calling gfree without arguments is the same as calling it:\n" );
+			fprintf( stdout, "\tgfree --secu_flag off --sim_unlock --cid 11111111\n" );
+			exit( 0 );
 		}
-	}
 
-	if( gopt_arg(options, 'c', &s_cid)){
-		// if -c or --cid was specified, check s_cid
-		size_t size;
-        size = strlen(s_cid);
-		if (size!=8){
-			fprintf( stderr, "Error: CID must be a 8 character string. Length of specified string: %d\n",(int)size);
-			exit (1);
-		} else {
-			cid = 1;
-			fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
+		if( gopt( options, 'v' ) ){
+			//if any of the version options was specified
+			fprintf( stdout, "gfree version: %d.%d\n",VERSION_A,VERSION_B);
 		}
-	}
 
-	if( gopt( options, 'S' ) ){
-		//if any of the sim_unlock options was specified
+		if( gopt_arg(options, 's', &s_secu_flag)){
+			// if -s or --secu_flag was specified, check s_secu_flag
+			if (strcmp(s_secu_flag, "on")==0){
+				secu_flag = 1;
+				fprintf( stdout, "--secu_flag on set\n");
+			} else if (strcmp(s_secu_flag, "off")==0){
+				secu_flag = 2;
+				fprintf( stdout, "--secu_flag off set\n");
+			}
+		}
+
+		if( gopt_arg(options, 'c', &s_cid)){
+			// if -c or --cid was specified, check s_cid
+			size_t size;
+			size = strlen(s_cid);
+			if (size!=8){
+				fprintf( stderr, "Error: CID must be a 8 character string. Length of specified string: %d\n",(int)size);
+				exit (1);
+			} else {
+				cid = 1;
+				fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
+			}
+		}
+
+		if( gopt( options, 'S' ) ){
+			//if any of the sim_unlock options was specified
+			sim_unlock = 1;
+			fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
+		}
+	} else {
+		secu_flag = 2;
+		fprintf( stdout, "--secu_flag off set\n");
+		cid = 1;
+		s_cid = "11111111";
+		fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
 		sim_unlock = 1;
 		fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
 	}
-
 	fdin = fopen(INFILE, "rb");
 	if (fdin == NULL){
 		printf("Error opening input file.\n");
