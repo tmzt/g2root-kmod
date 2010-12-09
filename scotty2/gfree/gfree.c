@@ -28,8 +28,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "wpthis.h"
+#include "gopt.h"
 
 /*
 c02a0570:       e3530802        cmp     r3, #131072     ; 0x20000
@@ -147,7 +149,10 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define INFILE "/dev/block/mmcblk0p7"
 #define OUTFILE "/dev/block/mmcblk0p7"
 
-int main(int argc, char **argv)
+#define VERSION_A	0
+#define VERSION_B	02
+
+int main(int argc, const char **argv)
 {
     struct elfHeader *header;
     struct sectionHeader *section;
@@ -162,7 +167,7 @@ int main(int argc, char **argv)
     int neededBuffer = 0;
     void *buffer;
     void *tmpBuffer;
-    FILE *output;
+//    FILE *output;
     struct utsname kernInfo;
     FILE *kallsyms;
     char tempString[256];
@@ -174,9 +179,89 @@ int main(int argc, char **argv)
     int kernelFD;
     FILE *fdin, *fdout;
     char ch;
-    int i;
     char *backupFile;
     time_t ourTime;
+
+	int cid, secu_flag, sim_unlock, verify = 0;
+	const char* s_secu_flag;
+	const char* s_cid;
+
+	if (argc>1) {
+
+		void *options= gopt_sort( & argc, argv, gopt_start(
+		  gopt_option( 'h', 0, gopt_shorts( 'h', '?' ), gopt_longs( "help", "HELP" )),
+		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
+		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "secu_flag" )),
+		  gopt_option( 'c', GOPT_ARG, gopt_shorts( 'c' ), gopt_longs( "cid" )),
+		  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" ))));
+
+		if( gopt( options, 'h' ) ){
+			//if any of the help options was specified
+			fprintf( stdout, "gfree usage:\n" );
+			fprintf( stdout, "gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n" );
+			fprintf( stdout, "\t-h | -? | --help: display this message\n" );
+			fprintf( stdout, "\t-v | --version: display program version\n" );
+			fprintf( stdout, "\t-s | --secu_flag on|off: turn secu_flag on or off\n" );
+			fprintf( stdout, "\t-c | --cid <CID>: set the CID to the 8-char long CID\n" );
+			fprintf( stdout, "\t-S | --sim_unlock: remove the SIMLOCK\n" );
+			fprintf( stdout, "\n" );
+			fprintf( stdout, "calling gfree without arguments is the same as calling it:\n" );
+			fprintf( stdout, "\tgfree --secu_flag off --sim_unlock --cid 11111111\n" );
+			exit( 0 );
+		}
+
+		if( gopt( options, 'v' ) ){
+			//if any of the version options was specified
+			fprintf( stdout, "gfree version: %d.%d\n",VERSION_A,VERSION_B);
+			exit (0);
+		}
+
+		if( gopt_arg(options, 's', &s_secu_flag)){
+			// if -s or --secu_flag was specified, check s_secu_flag
+			if (strcmp(s_secu_flag, "on")==0){
+				secu_flag = 1;
+				fprintf( stdout, "--secu_flag on set\n");
+			} else if (strcmp(s_secu_flag, "off")==0){
+				secu_flag = 2;
+				fprintf( stdout, "--secu_flag off set\n");
+			}
+		}
+
+		if( gopt_arg(options, 'c', &s_cid)){
+			// if -c or --cid was specified, check s_cid
+			size_t size;
+			size = strlen(s_cid);
+			if (size!=8){
+				fprintf( stderr, "Error: CID must be a 8 character string. Length of specified string: %d\n",(int)size);
+				exit (1);
+			} else {
+				cid = 1;
+				fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
+			}
+		}
+
+		if( gopt( options, 'S' ) ){
+			//if any of the sim_unlock options was specified
+			sim_unlock = 1;
+			fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
+		}
+
+		if( gopt( options, 'V' ) ){
+			//if any of the sim_unlock options was specified
+			verify = 1;
+			fprintf( stdout, "--verify. CID, secu_flag, SIMLOCK will be verified\n");
+		}
+
+	} else {
+		secu_flag = 2;
+		fprintf( stdout, "--secu_flag off set\n");
+		cid = 1;
+		s_cid = "11111111";
+		fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
+		sim_unlock = 1;
+		fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
+	}
+
 
     ourTime = time(0);
 
@@ -202,7 +287,7 @@ int main(int argc, char **argv)
     for(ent = 0; ent < header->shnum; ent++)
     {
 	section = (struct sectionHeader *)((uint32_t)wpthis_ko + header->shoff + (header->shentsize * ent));
-	if(!strcmp(&stringTable[section->name], ".modinfo"))
+	if(!strcmp((char*)&stringTable[section->name], ".modinfo"))
 	{
 	    printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
 	    printf(" -- offset: 0x%.8x (%d)\n", section->offset, section->offset);
@@ -441,107 +526,115 @@ int main(int argc, char **argv)
     printf("Patching and backing up partition 7...\n");
     fdin = fopen(INFILE, "rb");
     if (fdin == NULL){
-	printf("Error opening input file.\n");
-	return -1;
+		printf("Error opening input file.\n");
+		return -1;
     }
 
     backupFile = malloc(snprintf(0, 0, "/sdcard/part7backup-%lu.bin", ourTime) + 1);
-    if(!backupFile)
-    {
-	fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
-	return 1;
+    if(!backupFile) {
+		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
+		return 1;
     }
     sprintf(backupFile, "/sdcard/part7backup-%lu.bin", ourTime);
     
     fdout = fopen(backupFile, "wb");
     if (fdout == NULL){
-	printf("Error opening copy file.\n");
-	return -1;
+		printf("Error opening copy file.\n");
+		return -1;
     }
     
     //  create a copy of the partition
-    while(!feof(fdin)) {
-	ch = fgetc(fdin);
-	if(ferror(fdin)) {
-	    fprintf(stderr, "Error reading input file.\n");
-	    return 1;
+	while(!feof(fdin)) {
+		ch = fgetc(fdin);
+		if(ferror(fdin)) {
+		  printf("Error reading input file.\n");
+		  exit(1);
+		}
+		if(!feof(fdin)) fputc(ch, fdout);
+		if(ferror(fdout)) {
+		  printf("Error writing copy file.\n");
+		  exit(1);
+		}
 	}
-	if(!feof(fdin)) fputc(ch, fdout);
-	if(ferror(fdout)) {
-	    fprintf(stderr, "Error writing copy file.\n");
-	    return 1;
+	if(fclose(fdin)==EOF) {
+		printf("Error closing input file.\n");
+		exit(1);
 	}
-    }
-    if(fclose(fdin) == EOF) {
-	fprintf(stderr, "Error closing input file.\n");
-	return 1;
-    }
-    
-    if(fclose(fdout) == EOF) {
-	fprintf(stderr, "Error closing copy file.\n");
-	return 1;
-    }
-    
-    //  copy back and patch
-    fdin = fopen(backupFile, "rb");
-    if (fdin == NULL){
-	fprintf(stderr, "Error opening copy file.\n");
-	return 1;
-    }
-    
-    fdout = fopen(OUTFILE, "wb");
-    if (fdout == NULL){
-	fprintf(stderr, "Error opening output file.\n");
-	return 1;
-    }
-    
-    i = 0;
 
-    while(!feof(fdin)) {
-	ch = fgetc(fdin);
-	if(ferror(fdin)) {
-	    fprintf(stderr, "Error reading copy file.\n");
-	    return 1;
+	if(fclose(fdout)==EOF) {
+		printf("Error closing copy file.\n");
+		exit(1);
 	}
-	if (i == 0xa00 || (i > 0x80003 && i < 0x807fc) || (i >= 0x80800 && i <= 0x82fff)){
-	    ch = 0x00;
-	} else if ((i >= 0x200 && i <= 0x207)) {
-	    ch = 0x31;
-	} else if (i == 0x80000) {
-	    ch = 0x78;
-	} else if (i == 0x80001) {
-	    ch = 0x56;
-	} else if (i == 0x80002) {
-	    ch = 0xF3;
-	} else if (i == 0x80003) {
-	    ch = 0xC9;
-	} else if (i == 0x807fc) {
-	    ch = 0x49;
-	} else if (i == 0x807fd) {
-	    ch = 0x53;
-	} else if (i == 0x807fe) {
-	    ch = 0xF4;
-	} else if (i == 0x807ff) {
-	    ch = 0x7D;
-	}
-	if(!feof(fdin))
-	    fputc(ch, fdout);
 
-	if(ferror(fdout)) {
-	    fprintf(stderr, "Error writing output file.\n");
-	    return 1;
-	}
-	i++;
-    }
-    if(fclose(fdin) == EOF) {
-	fprintf(stderr, "Error closing copy file.\n");
-	return 1;
-    }
+//  copy back and patch
+	long j;
 
-    if(fclose(fdout) == EOF) {
-	fprintf(stderr, "Error closing output file.\n");
-	return 1;
-    }
+	fdin = fopen(backupFile, "rb");
+	if (fdin == NULL){
+		printf("Error opening copy file.\n");
+		return -1;
+	}
+
+	fdout = fopen(OUTFILE, "wb");
+	if (fdout == NULL){
+		printf("Error opening output file.\n");
+		return -1;
+	}
+
+	j = 0;
+
+	while(!feof(fdin)) {
+		ch = fgetc(fdin);
+		if(ferror(fdin)) {
+		  printf("Error reading copy file.\n");
+		  exit(1);
+		}
+		// secu_flag
+		if (j==0xa00 && secu_flag!=0) {
+			ch = secu_flag==2 ? 0x00 : 0x01;
+		}
+		// CID
+		if ((j>=0x200 && j<=0x207)&& (cid!=0)) {
+			ch = s_cid[j-0x200];
+		}
+		// SIM LOCK
+		if (sim_unlock!=0){
+			if ((j>0x80003 && j<0x807fc) || (j>=0x80800 && j<=0x82fff)){
+				ch = 0x00;
+			} else if (j==0x80000) {
+				ch = 0x78;
+			} else if (j==0x80001) {
+				ch = 0x56;
+			} else if (j==0x80002) {
+				ch = 0xF3;
+			} else if (j==0x80003) {
+				ch = 0xC9;
+			} else if (j==0x807fc) {
+				ch = 0x49;
+			} else if (j==0x807fd) {
+				ch = 0x53;
+			} else if (j==0x807fe) {
+				ch = 0xF4;
+			} else if (j==0x807ff) {
+				ch = 0x7D;
+			}
+		}
+		if(!feof(fdin)) fputc(ch, fdout);
+		if(ferror(fdout)) {
+		  printf("Error writing output file.\n");
+		  exit(1);
+		}
+		j++;
+	}
+	if(fclose(fdin)==EOF) {
+		printf("Error closing copy file.\n");
+		exit(1);
+	}
+
+	if(fclose(fdout)==EOF) {
+		printf("Error closing output file.\n");
+		exit(1);
+	}
 
     printf("Done.\n");
 
