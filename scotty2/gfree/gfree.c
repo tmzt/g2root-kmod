@@ -182,7 +182,7 @@ int main(int argc, const char **argv)
     char *backupFile;
     time_t ourTime;
 
-	int cid, secu_flag, sim_unlock, verify = 0;
+	int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0;
 	const char* s_secu_flag;
 	const char* s_cid;
 
@@ -193,22 +193,9 @@ int main(int argc, const char **argv)
 		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
 		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "secu_flag" )),
 		  gopt_option( 'c', GOPT_ARG, gopt_shorts( 'c' ), gopt_longs( "cid" )),
-		  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" ))));
+		  gopt_option( 'S', 0, gopt_shorts( 'S' ), gopt_longs( "sim_unlock" )),
+		  gopt_option( 'f', 0, gopt_shorts( 'f' ), gopt_longs( "free_all" ))));
 
-		if( gopt( options, 'h' ) ){
-			//if any of the help options was specified
-			fprintf( stdout, "gfree usage:\n" );
-			fprintf( stdout, "gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n" );
-			fprintf( stdout, "\t-h | -? | --help: display this message\n" );
-			fprintf( stdout, "\t-v | --version: display program version\n" );
-			fprintf( stdout, "\t-s | --secu_flag on|off: turn secu_flag on or off\n" );
-			fprintf( stdout, "\t-c | --cid <CID>: set the CID to the 8-char long CID\n" );
-			fprintf( stdout, "\t-S | --sim_unlock: remove the SIMLOCK\n" );
-			fprintf( stdout, "\n" );
-			fprintf( stdout, "calling gfree without arguments is the same as calling it:\n" );
-			fprintf( stdout, "\tgfree --secu_flag off --sim_unlock --cid 11111111\n" );
-			exit( 0 );
-		}
 
 		if( gopt( options, 'v' ) ){
 			//if any of the version options was specified
@@ -252,16 +239,42 @@ int main(int argc, const char **argv)
 			fprintf( stdout, "--verify. CID, secu_flag, SIMLOCK will be verified\n");
 		}
 
+		if( gopt( options, 'f' ) ){
+			secu_flag = 2;
+			fprintf( stdout, "--secu_flag off set\n");
+			cid = 1;
+			s_cid = "11111111";
+			fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
+			sim_unlock = 1;
+			fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
+		}
+
+		if( gopt( options, 'h' ) ){
+			help = 1;
+		}
+
 	} else {
-		secu_flag = 2;
-		fprintf( stdout, "--secu_flag off set\n");
-		cid = 1;
-		s_cid = "11111111";
-		fprintf( stdout, "--cid set. CID will be changed to: %s\n",s_cid);
-		sim_unlock = 1;
-		fprintf( stdout, "--sim_unlock. SIMLOCK will be removed\n");
+		help = 1;
 	}
 
+	if (help!=0){
+		//if any of the help options was specified
+		fprintf( stdout, "gfree usage:\n" );
+		fprintf( stdout, "gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n" );
+		fprintf( stdout, "\t-h | -? | --help: display this message\n" );
+		fprintf( stdout, "\t-v | --version: display program version\n" );
+		fprintf( stdout, "\t-s | --secu_flag on|off: turn secu_flag on or off\n" );
+		fprintf( stdout, "\t-c | --cid <CID>: set the CID to the 8-char long CID\n" );
+		fprintf( stdout, "\t-S | --sim_unlock: remove the SIMLOCK\n" );
+		fprintf( stdout, "\n" );
+		fprintf( stdout, "\t-f | --free_all: same as --secu_flag off --sim_unlock --cid 11111111\n" );
+		exit(0);
+	}
+
+	if (cid==0 && secu_flag==0 && sim_unlock==0){
+		fprintf( stdout, "no valid option specified, see gfree -h\n" );
+		exit(0);
+	}
 
     ourTime = time(0);
 
@@ -591,7 +604,13 @@ int main(int argc, const char **argv)
 		}
 		// secu_flag
 		if (j==0xa00 && secu_flag!=0) {
-			ch = secu_flag==2 ? 0x00 : 0x01;
+			if (secu_flag==1){
+				fprintf( stdout, "patching secu_flag: 1\n");
+				ch = 0x01;
+			} else {
+				fprintf( stdout, "patching secu_flag: 0\n");
+				ch = 0x00;
+			}
 		}
 		// CID
 		if ((j>=0x200 && j<=0x207)&& (cid!=0)) {
