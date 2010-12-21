@@ -274,7 +274,7 @@ int main(int argc, const char **argv)
 	if(gopt(options, 'w'))
 	    disable_wp = 1;
 
-	if(gopt(options, 'd'0)
+	if(gopt(options, 'd'))
 	    debug = 1;
 	
 	if(gopt(options, 'h'))
