@@ -149,6 +149,12 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define INFILE "/dev/block/mmcblk0p7"
 #define OUTFILE "/dev/block/mmcblk0p7"
 
+#define MOD_RET_OK       ENOSYS
+#define MOD_RET_FAILINIT ENOTEMPTY
+#define MOD_RET_FAILWP   ELOOP
+#define MOD_RET_FAIL     ENOMSG
+#define MOD_RET_NONEED   EXFULL
+
 #define VERSION_A	0
 #define VERSION_B	02
 
@@ -471,14 +477,39 @@ int main(int argc, const char **argv)
 	return 1;
     }
 
-    if(errno != ENOSYS)
+    switch(errno)
     {
-	printf("Failed.\n");
-	fprintf(stderr, "Module failed to load: %s\n", strerror(errno));
-	return 1;
+	case MOD_RET_OK:
+	    printf("OK.\n");
+	    printf("Write protect was successfully disabled.\n");
+	    break;
+
+	case MOD_RET_FAILINIT:
+	    printf("Failed.\n");
+	    fprintf(stderr, "Module failed init, check dmesg.\n");
+	    return 1;
+
+	case MOD_RET_FAILWP:
+	    printf("Failed. (Not fatal)\n");
+	    fprintf(stderr, "Module tried to power cycle eMMC, but could not verify write-protect status.\n");
+	    break;
+
+	case MOD_RET_FAIL:
+	    printf("Failed.\n");
+	    fprintf(stderr, "Module failed to power cycle eMMC.\n");
+	    break;
+
+	case MOD_RET_NONEED:
+	    printf("OK.\n");
+	    printf("Module did not power-cycle eMMC, write-protect already off.\n");
+	    break;
+
+	default:
+	    printf("Failed.\n");
+	    fprintf(stderr, "Module returned an unknown code (%d).\n", strerror(errno));
+	    return 1;
     }
 
-    printf("OK.\n");
     free(tmpBuffer);
     
     if(!(kallsyms = fopen("/proc/kallsyms", "rb")))
