@@ -158,6 +158,8 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define VERSION_A	0
 #define VERSION_B	02
 
+int debug = 0;
+
 int main(int argc, const char **argv)
 {
     struct elfHeader *header;
@@ -201,7 +203,8 @@ int main(int argc, const char **argv)
 		gopt_option('c', GOPT_ARG, gopt_shorts('c'), gopt_longs("cid")),
 		gopt_option('S', 0, gopt_shorts('S'), gopt_longs("sim_unlock")),
 		gopt_option('f', 0, gopt_shorts('f'), gopt_longs("free_all")),
-		gopt_option('w', 0, gopt_shorts('w'), gopt_longs("disable_wp"))));
+		gopt_option('w', 0, gopt_shorts('w'), gopt_longs("disable_wp")),
+		gopt_option('d', 0, gopt_shorts('d'), gopt_longs("debug"))));
 	
 	
 	if(gopt(options, 'v'))
@@ -270,6 +273,9 @@ int main(int argc, const char **argv)
 
 	if(gopt(options, 'w'))
 	    disable_wp = 1;
+
+	if(gopt(options, 'd'0)
+	    debug = 1;
 	
 	if(gopt(options, 'h'))
 	    help = 1;
@@ -335,7 +341,8 @@ int main(int argc, const char **argv)
 	}
 	else
 	{
-	    //	    printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
+	    if(debug)
+		printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
 	}
     }
 
@@ -788,17 +795,23 @@ void *fuzzyInstSearch(uint32_t *needle, uint32_t *haystack, uint32_t *masks, uin
     while(((uint32_t)currentHaystackPtr < ((uint32_t)haystack + haystackLength - needleLength)) &&
 	((uint32_t)currentNeedlePtr < ((uint32_t)needle + needleLength)))
     {
-	//	printf("h: 0x%.8x, n: 0x%.8x, *h: 0x%.8x, *n: 0x%.8x, ", currentHaystackPtr, currentNeedlePtr, *currentHaystackPtr, *currentNeedlePtr);
+	if(debug)
+	    printf("h: 0x%.8x, n: 0x%.8x, *h: 0x%.8x, *n: 0x%.8x, ", currentHaystackPtr, currentNeedlePtr, *currentHaystackPtr, *currentNeedlePtr);
+
 	if((*currentHaystackPtr & *currentMaskPtr) != (*currentNeedlePtr & *currentMaskPtr))
 	{
-	    //	    printf("Fail\n");
+	    if(debug)
+		printf("Fail\n");
+
 	    currentNeedlePtr = needle;
 	    currentMaskPtr = masks;
 	    currentHaystackPtr++;
 	    continue;
 	}
 
-	//	printf("Match\n");
+	if(debug)
+	    printf("Match\n");
+
 	currentNeedlePtr++;
 	currentMaskPtr++;
 	currentHaystackPtr++;
