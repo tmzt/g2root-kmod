@@ -156,7 +156,7 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define MOD_RET_NONEED   EXFULL
 
 #define VERSION_A	0
-#define VERSION_B	02
+#define VERSION_B	03
 
 int debug = 0;
 
