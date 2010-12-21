@@ -294,6 +294,7 @@ int main(int argc, const char **argv)
 	printf("\t-c | --cid <CID>: set the CID to the 8-char long CID\n");
 	printf("\t-S | --sim_unlock: remove the SIMLOCK\n");
 	printf("\t-w | --disable_wp: disable write protect on eMMC and remove kernel filter only\n");
+	printf("\t-d | --debug: enable debug output\n");
 	printf("\n");
 	printf("\t-f | --free_all: same as --secu_flag off --sim_unlock --cid 11111111\n");
 	exit(0);
