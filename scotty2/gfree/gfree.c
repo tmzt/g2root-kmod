@@ -300,7 +300,7 @@ int main(int argc, const char **argv)
 	exit(0);
     }
     
-    if(!cid && !secu_flag && !sim_unlock)
+    if(!cid && !secu_flag && !sim_unlock && !disable_wp)
     {
 	printf("no valid option specified, see gfree -h\n" );
 	exit(0);
