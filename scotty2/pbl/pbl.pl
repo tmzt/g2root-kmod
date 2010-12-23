@@ -53,9 +53,19 @@ my @crcTable = (0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
     }
     
     print "Using TTY: $tty\n";
-    print "Querying software version...\n";
-    my $swver = getSoftwareVersion($fd);
 
+    if(!sendPacket($fd, deserialize("07")))
+    {
+	print "Failed requestParam\n";
+	exit 1;
+    }
+    if(!($response = readPacket($fd)))
+    {
+	print "Failed to read response.\n";
+	exit 1;
+    }
+    print "Param: ", serialize($response), "\n";
+    my $swver = getSoftwareVersion($fd);
     if(!defined $swver)
     {
 	print "Failed to get software version\n";
@@ -63,7 +73,44 @@ my @crcTable = (0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
     }
     print "Version: $swver\n";
 
+    my $address = 0x00000000;
 
+    while($address <= 0xffffffff)
+    {
+	printf "Address: 0x%.8x\r", $address;
+	if(!sendPacket($fd, deserialize("0f " . serial32($address) . " 00 04 00 00 00 00")))
+	{
+	    print "Failed writeBlock\n";
+	    exit 1;
+	}
+	if(!($response = readPacket($fd)))
+	{
+	    print "Failed to read response.\n";
+	    exit 1;
+	}
+	my @bytes = unpack('C*', $response);
+
+	if(scalar @bytes == 3)
+	{
+	    if($bytes[2] != 2)
+	    {
+		printf "Address: 0x%.8x\n", $address;
+		printf "Response: ", serialize($response), "\n";
+	    }
+	}
+	else
+	{
+	    printf "Address: 0x%.8x\n", $address;
+	    print "Response: ", serialize($response), "\n";
+	}
+	$address += 0x1000;
+    }
+
+#    if(!prepSend($fd, 512000, 5))
+#    {
+#	print "Failed to prep for firmware upload\n";
+#	exit 1;
+#    }
 }
 
 sub getSoftwareVersion
@@ -186,9 +233,16 @@ sub crc
 
 sub swap16
 {
-    my $input = shift;
+    my $short = shift;
 
-    return (($input << 8) | ($input >> 8)) & 0xffff;
+    return (($short << 8) | ($short >> 8)) & 0xffff;
+}
+
+sub swap32
+{
+    my $long = shift;
+
+    return (($long << 24) | (($long & 0xff00) << 8) | (($long & 0xff0000) >> 8) | ($long >> 24));
 }
 
 sub setupPacket
@@ -196,7 +250,79 @@ sub setupPacket
     my $packet = shift;
 
     my $crc = swap16(crc(0xffff, $packet));
-    return deserialize("7e " . serialize($packet . deserialize(serial16($crc))) . " 7e");
+    return deserialize("7e " . serialize(escape($packet . deserialize(serial16($crc)))) . " 7e");
+}
+
+sub escape
+{
+    my $buffer = shift;
+
+    my @bytes = unpack('C*', $buffer);
+    my @newBytes;
+
+    foreach my $byte (@bytes)
+    {
+	if($byte == 0x7e)
+	{
+	    push @newBytes, 0x7d;
+	    push @newBytes, 0x5e;
+	}
+	elsif($byte == 0x7d)
+	{
+	    push @newBytes, 0x7d;
+	    push @newBytes, 0x5d;
+	}
+	else
+	{
+	    push @newBytes, $byte;
+	}
+    }
+
+    return pack('C*', @newBytes);
+}
+
+sub unescape
+{
+    my $buffer = shift;
+
+    my @bytes = unpack('C*', $buffer);
+    my @newBytes;
+
+    my $escape = 0;
+
+    foreach my $byte (@bytes)
+    {
+	if($escape)
+	{
+	    if($byte == 0x5e)
+	    {
+		push @newBytes, 0x7e;
+	    }
+	    elsif($byte == 0x5d)
+	    {
+		push @newBytes, 0x7d;
+	    }
+	    else
+	    {
+		print "Fatal error unescaping buffer!\n";
+		return undef;
+	    }
+	    $escape = 0;
+	}
+	else
+	{
+	    if($byte == 0x7d)
+	    {
+		$escape = 1;
+	    }
+	    else
+	    {
+		push @newBytes, $byte;
+	    }
+	}
+    }
+
+    return pack('C*', @newBytes);
 }
 
 sub serial16
@@ -207,6 +333,16 @@ sub serial16
     my $hbyte = $short >> 8;
 
     return sprintf('%.2x %.2x', $hbyte, $lbyte);
+}
+
+sub serial32
+{
+    my $long = shift;
+
+    my $lshort = $long & 0xffff;
+    my $hshort = $long >> 16;
+
+    return serial16($hshort) . ' ' . serial16($lshort);
 }
 
 sub readPacket
@@ -227,23 +363,22 @@ sub readPacket
 
     my @bytes;
 
-    print "RECEIVING: 7e ";
     while(1)
     {
 	$retval = sysread($fd, $byte, 1);
 	if(!$retval)
 	{
-	    print "\n";
 	    print "retval (while): $retval\n";
 	    print "$!\n";
 	    return undef;
 	}
-	printf '%.2x ', unpack('C', $byte);
 	last if(unpack('C', $byte) == 0x7e);
 	push @bytes, unpack('C', $byte);
     }
+    my $buffer = unescape(pack('C*', @bytes));
+#    print "RECEIVED: 7e " . serialize($buffer) . " 7e\n";
+    @bytes = unpack('C*', $buffer);
     pop @bytes; pop @bytes;
-    print "\n";
     return deserialize(join(' ', map { sprintf('%.2x', $_) } @bytes))
 }
 
@@ -252,7 +387,7 @@ sub sendPacket
     my $fd = shift;
     my $buffer = shift;
 
-    print "SENDING: ", serialize(setupPacket($buffer)), "\n";
+#    print "SENDING: ", serialize(setupPacket($buffer)), "\n";
 
     my $retval = syswrite($fd, setupPacket($buffer), length(setupPacket($buffer)));
 
