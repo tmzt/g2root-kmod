@@ -124,8 +124,8 @@ int gogogo(struct msmsdcc_host *sdcchost, struct mmc_host *mmchost, struct mmc_c
 	if(!reset_and_init_emmc(mmchost, mmccard, clk, &ocr, cid, csd, ext_csd))
 	{
 	    dmesg("Manual re-init failed, falling back to kernel re-init.\n");
+	    powercycle_emmc();
 	    deferred_resume(mmchost);
-	    return MOD_RET_FAILWP;
 	}
 	// verify wp.
 	retval = check_wp(mmchost, mmccard, sector_count, wp_grp_size_real);
