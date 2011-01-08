@@ -1,5 +1,8 @@
 #!/usr/bin/perl
 
+# basic communications with the PBL Downloader that talks over usb if you've totally effed up your phone (try fdisk_emmc from hboot if you want your phone bricked to this state)
+# can upload a binary file to an address. (PBL allows 0x80000000 - 0x8003ffff)
+
 use strict;
 use warnings;
 
@@ -41,7 +44,6 @@ my @crcTable = (0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
 		0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78);
 
 {
-    my $getSoftVer = "0c";
     my $retval;
     my $response;
     my ($fd, $tty) = setupTTY();
@@ -73,44 +75,66 @@ my @crcTable = (0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,
     }
     print "Version: $swver\n";
 
-    my $address = 0x00000000;
-
-    while($address <= 0xffffffff)
+    for(0..255)
     {
-	printf "Address: 0x%.8x\r", $address;
-	if(!sendPacket($fd, deserialize("0f " . serial32($address) . " 00 04 00 00 00 00")))
-	{
-	    print "Failed writeBlock\n";
-	    exit 1;
-	}
-	if(!($response = readPacket($fd)))
-	{
-	    print "Failed to read response.\n";
-	    exit 1;
-	}
-	my @bytes = unpack('C*', $response);
+	next if($_ == 5); # execute
+	next if($_ == 0xa); # reset
+	next if($_ == 0xe); # power off
 
-	if(scalar @bytes == 3)
-	{
-	    if($bytes[2] != 2)
-	    {
-		printf "Address: 0x%.8x\n", $address;
-		printf "Response: ", serialize($response), "\n";
-	    }
-	}
-	else
-	{
-	    printf "Address: 0x%.8x\n", $address;
-	    print "Response: ", serialize($response), "\n";
-	}
-	$address += 0x1000;
+	my $cmd = pack('C', $_);
+
+	my $response;
+	exit 1 if(!sendPacket($fd, $cmd));
+	exit 1 if(!($response = readPacket($fd)));
+	my @responseBytes = unpack('C*', $response);
+	next if(scalar @responseBytes == 3 && $responseBytes[2] == 6);
+	print "Command ", sprintf('%.2x', $_), " response: ", serialize($response), "\n";
     }
+}
 
-#    if(!prepSend($fd, 512000, 5))
-#    {
-#	print "Failed to prep for firmware upload\n";
-#	exit 1;
-#    }
+sub writeChunk
+{
+    my $fd = shift;
+    my $address = shift;
+    my $chunk = shift;
+
+    my $length = length($chunk);
+    my $response;
+    return undef if(!sendPacket($fd, deserialize("0f " . serial32($address) . " " . serial16($length) . " " . serialize($chunk))));
+    return undef if(!($response = readPacket($fd)));
+
+    my @responseBytes = unpack('C*', $response);
+    return undef if(scalar @responseBytes != 1);
+    return undef if($responseBytes[0] != 2);
+    return 1;
+}
+
+sub uploadFile
+{
+    my $fd = shift;
+    my $address = shift;
+    my $filename = shift;
+
+    local $/ = undef;
+
+    return undef if(!open(FILE, $filename));
+    my $data = <FILE>;
+    close FILE;
+
+    while(length $data)
+    {
+	my $chunk = substr($data, 0, 1024);
+
+	my $restOfData = substr($data, length($chunk), length($data) - length($chunk));
+
+	print "Writing ", length($chunk), " bytes to 0x", sprintf('%.8x', $address), "; ", length($restOfData), " bytes left.\n";
+
+	return undef if(!writeChunk($fd, $address, $chunk));
+
+	$address += length($chunk);
+	$data = $restOfData;
+    }
+    return 1;
 }
 
 sub getSoftwareVersion
@@ -187,12 +211,15 @@ sub getFile
     return $content;
 }
 
-sub cmdExecute
+sub execute
 {
+    my $fd = shift;
     my $address = shift;
 
-    my $hexAddr = serialize(pack('L', $address));
-    print "hexAddr: $hexAddr\n";
+    my $response;
+    return undef if(!sendPacket($fd, deserialize("05 " . serial32($address))));
+    return undef if(!($response = readPacket($fd)));
+    return 1;
 }
 
 sub serialize
