@@ -1,0 +1,6 @@
+#!/bin/sh
+
+adb push psneuter /data/local/tmp
+adb shell /data/local/tmp/psneuter
+sleep 5
+adb shell

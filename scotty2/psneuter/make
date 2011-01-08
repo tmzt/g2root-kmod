@@ -1,0 +1,4 @@
+#!/bin/sh
+
+arm-linux-gnueabi-gcc -opsneuter -static psneuter.c
+adb push psneuter /data/local/tmp
