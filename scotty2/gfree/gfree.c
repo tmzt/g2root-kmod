@@ -156,7 +156,7 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define MOD_RET_NONEED   EXFULL
 
 #define VERSION_A	0
-#define VERSION_B	03
+#define VERSION_B	4
 
 int debug = 0;
 
@@ -190,9 +190,10 @@ int main(int argc, const char **argv)
     char *backupFile;
     time_t ourTime;
 
-    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0;
+    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0, restore = 0;
     const char* s_secu_flag;
     const char* s_cid;
+    const char* s_restoreFile;
     
     if(argc > 1)
     {
@@ -204,6 +205,7 @@ int main(int argc, const char **argv)
 		gopt_option('S', 0, gopt_shorts('S'), gopt_longs("sim_unlock")),
 		gopt_option('f', 0, gopt_shorts('f'), gopt_longs("free_all")),
 		gopt_option('w', 0, gopt_shorts('w'), gopt_longs("disable_wp")),
+		gopt_option('r', GOPT_ARG, gopt_shorts('r'), gopt_longs("restore")),
 		gopt_option('d', 0, gopt_shorts('d'), gopt_longs("debug"))));
 	
 	
@@ -274,6 +276,19 @@ int main(int argc, const char **argv)
 	if(gopt(options, 'w'))
 	    disable_wp = 1;
 
+	if(gopt_arg(options, 'r', &s_restoreFile)) {
+	    // if -r or --restore was specified, check s_restoreFile
+	    size_t size;
+	    size = strlen(s_cid);
+	    if(size == 0) {
+			printf("Error: No restore file specified!\n", (int)size);
+			exit(1);
+	    } else {
+			restore = 1;
+			printf("--restore set. Partition 7 will be restored from file: %s\n", s_restoreFile);
+	    }
+	}
+
 	if(gopt(options, 'd'))
 	    debug = 1;
 	
@@ -285,25 +300,26 @@ int main(int argc, const char **argv)
     
     if(help)
     {
-	//if any of the help options was specified
-	printf("gfree usage:\n");
-	printf("gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n");
-	printf("\t-h | -? | --help: display this message\n");
-	printf("\t-v | --version: display program version\n");
-	printf("\t-s | --secu_flag on|off: turn secu_flag on or off\n");
-	printf("\t-c | --cid <CID>: set the CID to the 8-char long CID\n");
-	printf("\t-S | --sim_unlock: remove the SIMLOCK\n");
-	printf("\t-w | --disable_wp: disable write protect on eMMC and remove kernel filter only\n");
-	printf("\t-d | --debug: enable debug output\n");
-	printf("\n");
-	printf("\t-f | --free_all: same as --secu_flag off --sim_unlock --cid 11111111\n");
-	exit(0);
+		//if any of the help options was specified
+		printf("gfree usage:\n");
+		printf("gfree [-h|-?|--help] [-v|--version] [-s|--secu_flag on|off]\n");
+		printf("\t-h | -? | --help: display this message\n");
+		printf("\t-v | --version: display program version\n");
+		printf("\t-s | --secu_flag on|off: turn secu_flag on or off\n");
+		printf("\t-c | --cid <CID>: set the CID to the 8-char long CID\n");
+		printf("\t-S | --sim_unlock: remove the SIMLOCK\n");
+		printf("\t-w | --disable_wp: disable write protect on eMMC and remove kernel filter only\n");
+		printf("\t-r | --restore <backupFile>: restore partition from backup file\n");
+		printf("\t-d | --debug: enable debug output\n");
+		printf("\n");
+		printf("\t-f | --free_all: same as --secu_flag off --sim_unlock --cid 11111111\n");
+		exit(0);
     }
     
-    if(!cid && !secu_flag && !sim_unlock && !disable_wp)
+    if(!cid && !secu_flag && !sim_unlock && !disable_wp && !restore)
     {
-	printf("no valid option specified, see gfree -h\n" );
-	exit(0);
+		printf("no valid option specified, see gfree -h\n" );
+		exit(0);
     }
     
     ourTime = time(0);
@@ -595,7 +611,11 @@ int main(int argc, const char **argv)
 	return 0;
 
     // Guhl's part7 patch/backup code
-    printf("Patching and backing up partition 7...\n");
+    if (restore)
+    	printf("Backing up current partition 7 and restoring specified backup...\n");
+    else
+    	printf("Backing up current partition 7 and patching it...\n");
+
     fdin = fopen(INFILE, "rb");
     if (fdin == NULL){
 		printf("Error opening input file.\n");
@@ -638,80 +658,119 @@ int main(int argc, const char **argv)
 		exit(1);
 	}
 
-//  copy back and patch
-	long j;
-
-	fdin = fopen(backupFile, "rb");
-	if (fdin == NULL){
-		printf("Error opening copy file.\n");
-		return -1;
-	}
-
-	fdout = fopen(OUTFILE, "wb");
-	if (fdout == NULL){
-		printf("Error opening output file.\n");
-		return -1;
-	}
-
-	j = 0;
-
-	while(!feof(fdin)) {
-		ch = fgetc(fdin);
-		if(ferror(fdin)) {
-		  printf("Error reading copy file.\n");
-		  exit(1);
+	if (restore) {
+		// restore backup file
+		fdin = fopen(s_restoreFile, "rb");
+		if (fdin == NULL){
+			printf("Error opening restore file.\n");
+			return -1;
 		}
-		// secu_flag
-		if (j==0xa00 && secu_flag!=0) {
-			if (secu_flag==1){
-				fprintf( stdout, "patching secu_flag: 1\n");
-				ch = 0x01;
-			} else {
-				fprintf( stdout, "patching secu_flag: 0\n");
-				ch = 0x00;
+
+		fdout = fopen(OUTFILE, "wb");
+		if (fdout == NULL){
+			printf("Error opening output file.\n");
+			return -1;
+		}
+
+		//  copy the backup file back to the partition
+		while(!feof(fdin)) {
+			ch = fgetc(fdin);
+			if(ferror(fdin)) {
+			  printf("Error reading input file.\n");
+			  exit(1);
+			}
+			if(!feof(fdin)) fputc(ch, fdout);
+			if(ferror(fdout)) {
+			  printf("Error writing output file.\n");
+			  exit(1);
 			}
 		}
-		// CID
-		if ((j>=0x200 && j<=0x207)&& (cid!=0)) {
-			ch = s_cid[j-0x200];
-		}
-		// SIM LOCK
-		if (sim_unlock!=0){
-			if ((j>0x80003 && j<0x807fc) || (j>=0x80800 && j<=0x82fff)){
-				ch = 0x00;
-			} else if (j==0x80000) {
-				ch = 0x78;
-			} else if (j==0x80001) {
-				ch = 0x56;
-			} else if (j==0x80002) {
-				ch = 0xF3;
-			} else if (j==0x80003) {
-				ch = 0xC9;
-			} else if (j==0x807fc) {
-				ch = 0x49;
-			} else if (j==0x807fd) {
-				ch = 0x53;
-			} else if (j==0x807fe) {
-				ch = 0xF4;
-			} else if (j==0x807ff) {
-				ch = 0x7D;
-			}
-		}
-		if(!feof(fdin)) fputc(ch, fdout);
-		if(ferror(fdout)) {
-		  printf("Error writing output file.\n");
-		  exit(1);
-		}
-		j++;
-	}
-	if(fclose(fdin)==EOF) {
-		printf("Error closing copy file.\n");
-		exit(1);
-	}
 
-	if(fclose(fdout)==EOF) {
-		printf("Error closing output file.\n");
-		exit(1);
+		if(fclose(fdin)==EOF) {
+			printf("Error closing input file.\n");
+			exit(1);
+		}
+
+		if(fclose(fdout)==EOF) {
+			printf("Error closing output file.\n");
+			exit(1);
+		}
+	} else {
+		//  copy back and patch
+		long j;
+
+		fdin = fopen(backupFile, "rb");
+		if (fdin == NULL){
+			printf("Error opening copy file.\n");
+			return -1;
+		}
+
+		fdout = fopen(OUTFILE, "wb");
+		if (fdout == NULL){
+			printf("Error opening output file.\n");
+			return -1;
+		}
+
+		j = 0;
+
+		while(!feof(fdin)) {
+			ch = fgetc(fdin);
+			if(ferror(fdin)) {
+			  printf("Error reading copy file.\n");
+			  exit(1);
+			}
+			// secu_flag
+			if (j==0xa00 && secu_flag!=0) {
+				if (secu_flag==1){
+					fprintf( stdout, "patching secu_flag: 1\n");
+					ch = 0x01;
+				} else {
+					fprintf( stdout, "patching secu_flag: 0\n");
+					ch = 0x00;
+				}
+			}
+			// CID
+			if ((j>=0x200 && j<=0x207)&& (cid!=0)) {
+				ch = s_cid[j-0x200];
+			}
+			// SIM LOCK
+			if (sim_unlock!=0){
+				if ((j>0x80003 && j<0x807fc) || (j>=0x80800 && j<=0x82fff)){
+					ch = 0x00;
+				} else if (j==0x80000) {
+					ch = 0x78;
+				} else if (j==0x80001) {
+					ch = 0x56;
+				} else if (j==0x80002) {
+					ch = 0xF3;
+				} else if (j==0x80003) {
+					ch = 0xC9;
+				} else if (j==0x807fc) {
+					ch = 0x49;
+				} else if (j==0x807fd) {
+					ch = 0x53;
+				} else if (j==0x807fe) {
+					ch = 0xF4;
+				} else if (j==0x807ff) {
+					ch = 0x7D;
+				}
+			}
+			if(!feof(fdin)) fputc(ch, fdout);
+			if(ferror(fdout)) {
+			  printf("Error writing output file.\n");
+			  exit(1);
+			}
+			j++;
+		}
+		if(fclose(fdin)==EOF) {
+			printf("Error closing copy file.\n");
+			exit(1);
+		}
+
+		if(fclose(fdout)==EOF) {
+			printf("Error closing output file.\n");
+			exit(1);
+		}
 	}
 
     printf("Done.\n");
