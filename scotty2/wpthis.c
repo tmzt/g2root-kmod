@@ -167,12 +167,15 @@ int check_wp(struct mmc_host *host, struct mmc_card *card, uint32_t total_sector
 
 void powercycle_emmc()
 {
-    gpio_tlmm_config(PCOM_GPIO_CFG(88, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_4MA), 0);
-    gpio_set_value(88, 0);
-    mdelay(100);
+    gpio_tlmm_config(PCOM_GPIO_CFG(88, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), 0);
 
+    // turn off.
+    gpio_set_value(88, 0);
+    mdelay(200);
+
+    // turn back on.
     gpio_set_value(88, 1);
-    mdelay(100);
+    mdelay(200);
 }
 
 // reset and re-init eMMC,
