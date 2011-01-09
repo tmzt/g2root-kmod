@@ -505,7 +505,7 @@ int main(int argc, const char **argv)
 	case MOD_RET_FAIL:
 	    printf("Failed.\n");
 	    fprintf(stderr, "Module failed to power cycle eMMC.\n");
-	    break;
+	    return 1;
 
 	case MOD_RET_NONEED:
 	    printf("OK.\n");
