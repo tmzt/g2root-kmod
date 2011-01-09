@@ -279,9 +279,9 @@ int main(int argc, const char **argv)
 	if(gopt_arg(options, 'r', &s_restoreFile)) {
 	    // if -r or --restore was specified, check s_restoreFile
 	    size_t size;
-	    size = strlen(s_cid);
+	    size = strlen(s_restoreFile);
 	    if(size == 0) {
-			printf("Error: No restore file specified!\n", (int)size);
+			printf("Error: No restore file specified!\n");
 			exit(1);
 	    } else {
 			restore = 1;
@@ -530,7 +530,7 @@ int main(int argc, const char **argv)
 
 	default:
 	    printf("Failed.\n");
-	    fprintf(stderr, "Module returned an unknown code (%d).\n", strerror(errno));
+	    fprintf(stderr, "Module returned an unknown code (%s).\n", strerror(errno));
 	    return 1;
     }
 
