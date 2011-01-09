@@ -1,9 +1,9 @@
 VERSION = 0.02
-CC      = /usr/bin/arm-unknown-linux-gnu-gcc
+CC      = /usr/bin/arm-linux-gnueabi-gcc
 CFLAGS  = -Wall -g -D_REENTRANT -DVERSION=\"$(VERSION)\"
-INCDIR	= -I/usr/arm-unknown-linux-gnu/usr/include/ -I.
-LIBDIR  = /usr/arm-unknown-linux-gnu/lib/
-LDFLAGS = -L$(LIBDIR) -static -lm 
+INCDIR	= -I/usr/arm-linux-gnueabi/usr/include/ -I.
+LIBDIR  = /usr/arm-linux-gnueabi/lib/
+LDFLAGS = -L$(LIBDIR) -static
 RM      = rm -f
 
 TRG = gfree
