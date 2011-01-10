@@ -37,15 +37,8 @@
 #define ASHMEM_GET_PIN_STATUS   _IO(__ASHMEMIOC, 9)
 #define ASHMEM_PURGE_ALL_CACHES _IO(__ASHMEMIOC, 10)
 
-struct ashmem_pin {
-    uint32_t offset;
-    uint32_t len;
-};
-
 int main(int argc, char **argv, char **envp)
 {
-    struct ashmem_pin pin;
-
     char *workspace;
     char *fdStr;
     char *szStr;
@@ -92,20 +85,9 @@ int main(int argc, char **argv, char **envp)
 	exit(1);
     }
 
-    printf("sz: %d\n", sz);
-    printf("ioctl sz: %d\n", ioctl(fd, ASHMEM_GET_SIZE));
-    
-    pin.offset = 0;
-    pin.len = 0;
-    if(ioctl(fd, ASHMEM_UNPIN, &pin))
+    if(ioctl(fd, ASHMEM_SET_PROT_MASK, 0))
     {
-	fprintf(stderr, "Failed to set unpin section (%s)\n", strerror(errno));
-	exit(1);
-    }
-
-    if(ioctl(fd, ASHMEM_PURGE_ALL_CACHES))
-    {
-	fprintf(stderr, "Failed to purge caches (%s)\n", strerror(errno));
+	fprintf(stderr, "Failed to set prot mask (%s)\n", strerror(errno));
 	exit(1);
     }
 
