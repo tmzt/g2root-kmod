@@ -30,18 +30,20 @@
 //#define BACKUPFILE "/opt/install/g2/my_dump/p17/part17backup-%lu.bin"
 
 #define VERSION_A	0
-#define VERSION_B	01
+#define VERSION_B	2
 
 int main(int argc, const char **argv) {
 
-	int set_version = 0, help = 0;
+	int cid = 0, set_version = 0, help = 0;
 	const char* s_set_version;
+    const char* s_cid;
 
 	if (argc>1) {
 
 		void *options= gopt_sort( & argc, argv, gopt_start(
 		  gopt_option( 'h', 0, gopt_shorts( 'h', '?' ), gopt_longs( "help", "HELP" )),
 		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
+		  gopt_option( 'c', GOPT_ARG, gopt_shorts('c'), gopt_longs("cid")),
 		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "set_version" ))));
 
 		if( gopt( options, 'h' ) ){
@@ -51,6 +53,23 @@ int main(int argc, const char **argv) {
 		if( gopt( options, 'v' ) ){
 			fprintf( stdout, "misc_version version: %d.%d\n",VERSION_A,VERSION_B);
 			exit (0);
+		}
+
+		if(gopt_arg(options, 'c', &s_cid))
+		{
+		    // if -c or --cid was specified, check s_cid
+		    size_t size;
+		    size = strlen(s_cid);
+		    if(size != 8)
+		    {
+			printf("Error: CID must be a 8 character string. Length of specified string: %d\n", (int)size);
+			exit(1);
+		    }
+		    else
+		    {
+			cid = 1;
+			printf("--cid set. CID will be changed to: %s\n", s_cid);
+		    }
 		}
 
 		if( gopt_arg(options, 's', &s_set_version)){
@@ -76,7 +95,8 @@ int main(int argc, const char **argv) {
 		fprintf( stdout, "misc_version [-h|-?|--help] [-v|--version] [-s|--set_version <VERSION>]\n" );
 		fprintf( stdout, "\t-h | -? | --help: display this message\n" );
 		fprintf( stdout, "\t-v | --version: display program version\n" );
-		fprintf( stdout, "\t-s | --set_version <VERSION>:  set the version to the 10-char long VERSION\n" );
+		fprintf( stdout, "\t-c | --cid <CID>: set the CID in misc to the 8-char long CID\n");
+		fprintf( stdout, "\t-s | --set_version <VERSION>:  set the version in misc to the 10-char long VERSION\n" );
 		exit(0);
 	}
 
@@ -149,6 +169,10 @@ int main(int argc, const char **argv) {
 	      printf("Error reading backup file.\n");
 	      exit(1);
 	    }
+		// CID
+		if ((j>=0x0 && j<=0x7)&& (cid!=0)) {
+			ch = s_cid[j];
+		}
 		// VERSION
 		if ((j>=0xa0 && j<=0xa9)&& (set_version!=0)) {
 			ch = s_set_version[j-0xa0];
