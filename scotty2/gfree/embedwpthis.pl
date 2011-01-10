@@ -5,7 +5,7 @@ use warnings;
 
 $/ = undef;
 
-if(!open(KO, "wpthis.ko"))
+if(!open(KO, "../wpthis.ko"))
 {
     print STDERR "Failed to open wpthis.ko\n";
     exit 1;
