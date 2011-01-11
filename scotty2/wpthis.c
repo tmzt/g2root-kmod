@@ -384,10 +384,10 @@ static int __init wpthis_init(void)
     print_clock(pclk);
 
     // make sure we have what we think we have.
-    assert(!strcmp(dev_name(block_dev),"mmcblk0"));
-    assert(!strcmp(dev_name(card_dev), "mmc0:0001"));
-    assert(!strcmp(dev_name(host_dev), "mmc0"));
-    assert(!strcmp(dev_name(sdcc_dev), "msm_sdcc.2"));
+    assert(strstr(dev_name(block_dev),"mmcblk"));
+    assert(strstr(dev_name(card_dev), "mmc"));
+    assert(strstr(dev_name(host_dev), "mmc"));
+    assert(strstr(dev_name(sdcc_dev), "msm_sdcc"));
 
     mmc_claim_host(mmchost);
     clk_enable(pclk);
