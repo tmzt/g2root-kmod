@@ -148,6 +148,8 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define MAX_FUNC_LEN 0xa6c
 #define INFILE "/dev/block/mmcblk0p7"
 #define OUTFILE "/dev/block/mmcblk0p7"
+#define HBOOT_IN_FILE "/dev/block/mmcblk0p18"
+#define HBOOT_OUT_FILE "/dev/block/mmcblk0p18"
 
 #define MOD_RET_OK       ENOSYS
 #define MOD_RET_FAILINIT ENOTEMPTY
@@ -156,7 +158,7 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define MOD_RET_NONEED   EXFULL
 
 #define VERSION_A	0
-#define VERSION_B	4
+#define VERSION_B	5
 
 int debug = 0;
 
@@ -190,10 +192,11 @@ int main(int argc, const char **argv)
     char *backupFile;
     time_t ourTime;
 
-    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0, restore = 0;
+    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0, restore = 0, hboot = 0;
     const char* s_secu_flag;
     const char* s_cid;
     const char* s_restoreFile;
+    const char* s_hbootFile;
     
     if(argc > 1)
     {
@@ -205,6 +208,7 @@ int main(int argc, const char **argv)
 		gopt_option('S', 0, gopt_shorts('S'), gopt_longs("sim_unlock")),
 		gopt_option('f', 0, gopt_shorts('f'), gopt_longs("free_all")),
 		gopt_option('w', 0, gopt_shorts('w'), gopt_longs("disable_wp")),
+		gopt_option('b', GOPT_ARG, gopt_shorts('b'), gopt_longs("hboot")),
 		gopt_option('r', GOPT_ARG, gopt_shorts('r'), gopt_longs("restore")),
 		gopt_option('d', 0, gopt_shorts('d'), gopt_longs("debug"))));
 	
@@ -276,6 +280,19 @@ int main(int argc, const char **argv)
 	if(gopt(options, 'w'))
 	    disable_wp = 1;
 
+	if(gopt_arg(options, 'b', &s_hbootFile)) {
+	    // if -b or --hboot was specified, check s_hbootFile
+	    size_t size;
+	    size = strlen(s_hbootFile);
+	    if(size == 0) {
+			printf("Error: No hboot image file specified!\n");
+			exit(1);
+	    } else {
+			hboot = 1;
+			printf("--hboot set. hboot image %s will be installed in partition 18\n", s_restoreFile);
+	    }
+	}
+
 	if(gopt_arg(options, 'r', &s_restoreFile)) {
 	    // if -r or --restore was specified, check s_restoreFile
 	    size_t size;
@@ -309,6 +326,7 @@ int main(int argc, const char **argv)
 		printf("\t-c | --cid <CID>: set the CID to the 8-char long CID\n");
 		printf("\t-S | --sim_unlock: remove the SIMLOCK\n");
 		printf("\t-w | --disable_wp: disable write protect on eMMC and remove kernel filter only\n");
+		printf("\t-b | --hboot: <hbootFile>: install hboot from image file\n");
 		printf("\t-r | --restore <backupFile>: restore partition from backup file\n");
 		printf("\t-d | --debug: enable debug output\n");
 		printf("\n");
@@ -607,6 +625,90 @@ int main(int argc, const char **argv)
 
     munmap(kernel, pageSize * 2);
 
+    // Guhl's hboot install code
+    // Install a hboot image
+    if (hboot){
+    	printf("Backing up current partition 18 and installing specified hboot image...\n");
+
+    	fdin = fopen(HBOOT_IN_FILE, "rb");
+        if (fdin == NULL){
+    		printf("Error opening hboot input file.\n");
+    		return -1;
+        }
+
+    	backupFile = malloc(snprintf(0, 0, "/sdcard/part18backup-%lu.bin", ourTime) + 1);
+        if(!backupFile) {
+    		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
+    		return 1;
+        }
+        sprintf(backupFile, "/sdcard/part18backup-%lu.bin", ourTime);
+
+        fdout = fopen(backupFile, "wb");
+        if (fdout == NULL){
+    		printf("Error opening backup file.\n");
+    		return -1;
+        }
+
+        //  create a copy of the partition
+    	while(!feof(fdin)) {
+    		ch = fgetc(fdin);
+    		if(ferror(fdin)) {
+    		  printf("Error reading hboot input file.\n");
+    		  exit(1);
+    		}
+    		if(!feof(fdin)) fputc(ch, fdout);
+    		if(ferror(fdout)) {
+    		  printf("Error writing backup file.\n");
+    		  exit(1);
+    		}
+    	}
+    	if(fclose(fdin)==EOF) {
+    		printf("Error closing hboot input file.\n");
+    		exit(1);
+    	}
+
+    	if(fclose(fdout)==EOF) {
+    		printf("Error closing backup file.\n");
+    		exit(1);
+    	}
+
+		// install hboot file
+		fdin = fopen(s_hbootFile, "rb");
+		if (fdin == NULL){
+			printf("Error opening hboot image file.\n");
+			return -1;
+		}
+
+		fdout = fopen(HBOOT_OUT_FILE, "wb");
+		if (fdout == NULL){
+			printf("Error opening hboot output file.\n");
+			return -1;
+		}
+
+		//  copy the hboot image file to the partition
+		while(!feof(fdin)) {
+			ch = fgetc(fdin);
+			if(ferror(fdin)) {
+			  printf("Error reading hboot image file.\n");
+			  exit(1);
+			}
+			if(!feof(fdin)) fputc(ch, fdout);
+			if(ferror(fdout)) {
+			  printf("Error writing hboot output file.\n");
+			  exit(1);
+			}
+		}
+
+		if(fclose(fdin)==EOF) {
+			printf("Error closing hboot image file.\n");
+			exit(1);
+		}
+
+		if(fclose(fdout)==EOF) {
+			printf("Error closing hboot output file.\n");
+			exit(1);
+		}
+    }
     if(disable_wp)
 	return 0;
 
@@ -631,7 +733,7 @@ int main(int argc, const char **argv)
     
     fdout = fopen(backupFile, "wb");
     if (fdout == NULL){
-		printf("Error opening copy file.\n");
+		printf("Error opening backup file.\n");
 		return -1;
     }
     
@@ -672,7 +774,7 @@ int main(int argc, const char **argv)
 			return -1;
 		}
 
-		//  copy the backup file back to the partition
+		//  copy the restore file back to the partition
 		while(!feof(fdin)) {
 			ch = fgetc(fdin);
 			if(ferror(fdin)) {
