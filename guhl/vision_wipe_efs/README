@@ -1,0 +1,15 @@
+vision_wipe_efs:
+
+	vision_wipe_efs is a program that creates a backup of the visions efs partition 13 and 14 and wipes the partitions afterwards.
+
+Version history:
+
+	vision_wipe_efs 0.1:
+		Version 0.1 wipes the efs data in partitions 13 and 14. It will create backups of the partition 13 and 14 on the sdcard using the name "/sdcard/part13backup-<time>.bin" and "/sdcard/part14backup-<time>.bin" so make sure that the sdcard is mounted to the phone.
+
+vision_wipe_efs usage:
+
+	Copy vision_wipe_efs to /data/local/tmp on the phone and the use a root shell to execute the following commands:
+	# cd /data/local/tmp
+	# chmod 755 vision_wipe_efs
+	# ./vision_wipe_efs
