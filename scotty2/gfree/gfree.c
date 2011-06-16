@@ -145,11 +145,16 @@ int addString(char *string, struct listEnt **root);
 void *fuzzyInstSearch(uint32_t *needle, uint32_t *haystack, uint32_t *masks, uint32_t needleLength, uint32_t haystackLength);
 extern long init_module(void *umod, unsigned long len, const char *uargs);
 
+int backupPartition(char* pPartition, char* pBackupFile);
+int writePartition(char* pImageFile, char* pPartition);
+
 #define MAX_FUNC_LEN 0xa6c
 #define INFILE "/dev/block/mmcblk0p7"
 #define OUTFILE "/dev/block/mmcblk0p7"
 #define HBOOT_IN_FILE "/dev/block/mmcblk0p18"
 #define HBOOT_OUT_FILE "/dev/block/mmcblk0p18"
+#define RECOVERY_IN_FILE "/dev/block/mmcblk0p21"
+#define RECOVERY_OUT_FILE "/dev/block/mmcblk0p21"
 
 #define MOD_RET_OK       ENOSYS
 #define MOD_RET_FAILINIT ENOTEMPTY
@@ -158,7 +163,7 @@ extern long init_module(void *umod, unsigned long len, const char *uargs);
 #define MOD_RET_NONEED   EXFULL
 
 #define VERSION_A	0
-#define VERSION_B	5
+#define VERSION_B	7
 
 int debug = 0;
 
@@ -192,11 +197,12 @@ int main(int argc, const char **argv)
     char *backupFile;
     time_t ourTime;
 
-    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0, restore = 0, hboot = 0;
+    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0, restore = 0, hboot = 0, recovery = 0;
     const char* s_secu_flag;
     const char* s_cid;
     const char* s_restoreFile;
     const char* s_hbootFile;
+    const char* s_recoveryFile;
     
     if(argc > 1)
     {
@@ -210,6 +216,7 @@ int main(int argc, const char **argv)
 		gopt_option('w', 0, gopt_shorts('w'), gopt_longs("disable_wp")),
 		gopt_option('b', GOPT_ARG, gopt_shorts('b'), gopt_longs("hboot")),
 		gopt_option('r', GOPT_ARG, gopt_shorts('r'), gopt_longs("restore")),
+		gopt_option('y', GOPT_ARG, gopt_shorts('y'), gopt_longs("recovery")),
 		gopt_option('d', 0, gopt_shorts('d'), gopt_longs("debug"))));
 	
 	
@@ -289,7 +296,20 @@ int main(int argc, const char **argv)
 			exit(1);
 	    } else {
 			hboot = 1;
-			printf("--hboot set. hboot image %s will be installed in partition 18\n", s_restoreFile);
+			printf("--hboot set. hboot image %s will be installed in partition 18\n", s_hbootFile);
+	    }
+	}
+
+	if(gopt_arg(options, 'y', &s_recoveryFile)) {
+	    // if -y or --recovery was specified, check s_recoveryFile
+	    size_t size;
+	    size = strlen(s_recoveryFile);
+	    if(size == 0) {
+			printf("Error: No recovery image file specified!\n");
+			exit(1);
+	    } else {
+	    	recovery = 1;
+			printf("--recovery set. recovery image %s will be installed in partition 21\n", s_hbootFile);
 	    }
 	}
 
@@ -334,7 +354,7 @@ int main(int argc, const char **argv)
 		exit(0);
     }
     
-    if(!cid && !secu_flag && !sim_unlock && !disable_wp && !restore)
+    if(!cid && !secu_flag && !sim_unlock && !disable_wp && !restore && !hboot && !recovery)
     {
 		printf("no valid option specified, see gfree -h\n" );
 		exit(0);
@@ -628,13 +648,8 @@ int main(int argc, const char **argv)
     // Guhl's hboot install code
     // Install a hboot image
     if (hboot){
+    	// backup partition 18
     	printf("Backing up current partition 18 and installing specified hboot image...\n");
-
-    	fdin = fopen(HBOOT_IN_FILE, "rb");
-        if (fdin == NULL){
-    		printf("Error opening hboot input file.\n");
-    		return -1;
-        }
 
     	backupFile = malloc(snprintf(0, 0, "/sdcard/part18backup-%lu.bin", ourTime) + 1);
         if(!backupFile) {
@@ -642,162 +657,68 @@ int main(int argc, const char **argv)
     		return 1;
         }
         sprintf(backupFile, "/sdcard/part18backup-%lu.bin", ourTime);
-
-        fdout = fopen(backupFile, "wb");
-        if (fdout == NULL){
-    		printf("Error opening backup file.\n");
-    		return -1;
-        }
-
-        //  create a copy of the partition
-    	while(!feof(fdin)) {
-    		ch = fgetc(fdin);
-    		if(ferror(fdin)) {
-    		  printf("Error reading hboot input file.\n");
-    		  exit(1);
-    		}
-    		if(!feof(fdin)) fputc(ch, fdout);
-    		if(ferror(fdout)) {
-    		  printf("Error writing backup file.\n");
-    		  exit(1);
-    		}
-    	}
-    	if(fclose(fdin)==EOF) {
-    		printf("Error closing hboot input file.\n");
+    	if (backupPartition(HBOOT_IN_FILE,backupFile)!=0)
     		exit(1);
-    	}
-
-    	if(fclose(fdout)==EOF) {
-    		printf("Error closing backup file.\n");
+		// install hboot image
+    	if (writePartition((char *)s_hbootFile, HBOOT_OUT_FILE)!=0)
     		exit(1);
-    	}
-
-		// install hboot file
-		fdin = fopen(s_hbootFile, "rb");
-		if (fdin == NULL){
-			printf("Error opening hboot image file.\n");
-			return -1;
-		}
-
-		fdout = fopen(HBOOT_OUT_FILE, "wb");
-		if (fdout == NULL){
-			printf("Error opening hboot output file.\n");
-			return -1;
-		}
-
-		//  copy the hboot image file to the partition
-		while(!feof(fdin)) {
-			ch = fgetc(fdin);
-			if(ferror(fdin)) {
-			  printf("Error reading hboot image file.\n");
-			  exit(1);
-			}
-			if(!feof(fdin)) fputc(ch, fdout);
-			if(ferror(fdout)) {
-			  printf("Error writing hboot output file.\n");
-			  exit(1);
-			}
-		}
-
-		if(fclose(fdin)==EOF) {
-			printf("Error closing hboot image file.\n");
-			exit(1);
-		}
-
-		if(fclose(fdout)==EOF) {
-			printf("Error closing hboot output file.\n");
-			exit(1);
-		}
     }
+
+    // Guhl's recovery install code
+    // Install a recovery image
+    if (recovery){
+    	// backup partition 21
+    	printf("Backing up current partition 21 and installing specified recovery image...\n");
+
+    	backupFile = malloc(snprintf(0, 0, "/sdcard/part21backup-%lu.bin", ourTime) + 1);
+        if(!backupFile) {
+    		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
+    		return 1;
+        }
+        sprintf(backupFile, "/sdcard/part21backup-%lu.bin", ourTime);
+    	if (backupPartition(RECOVERY_IN_FILE,backupFile)!=0)
+    		exit(1);
+		// install recovery image
+    	if (writePartition((char *)s_recoveryFile, RECOVERY_IN_FILE)!=0)
+    		exit(1);
+    }
+
+    // Guhl's partition 7 restore code
+    // Restore a partition 7 image
+    if (restore){
+    	// backup partition 7
+    	printf("Backing up current partition 7 and restoring specified backup...\n");
+
+    	backupFile = malloc(snprintf(0, 0, "/sdcard/part7backup-%lu.bin", ourTime) + 1);
+        if(!backupFile) {
+    		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
+    		return 1;
+        }
+        sprintf(backupFile, "/sdcard/part7backup-%lu.bin", ourTime);
+    	if (backupPartition(INFILE,backupFile)!=0)
+    		exit(1);
+		// install partition 7 image
+    	if (writePartition((char *)s_restoreFile, OUTFILE)!=0)
+    		exit(1);
+    }
+
+    // if we do not want to only disable the wp but not patch partition 7 -> exit
     if(disable_wp)
 	return 0;
 
-    // Guhl's part7 patch/backup code
-    if (restore)
-    	printf("Backing up current partition 7 and restoring specified backup...\n");
-    else
+    if(cid || secu_flag || sim_unlock){
+    // Guhl's part7 patch code
     	printf("Backing up current partition 7 and patching it...\n");
 
-    fdin = fopen(INFILE, "rb");
-    if (fdin == NULL){
-		printf("Error opening input file.\n");
-		return -1;
-    }
+        backupFile = malloc(snprintf(0, 0, "/sdcard/part7backup-%lu.bin", ourTime) + 1);
+        if(!backupFile) {
+    		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
+    		return 1;
+        }
+        sprintf(backupFile, "/sdcard/part7backup-%lu.bin", ourTime);
+    	if (backupPartition(INFILE,backupFile)!=0)
+    		exit(1);
 
-    backupFile = malloc(snprintf(0, 0, "/sdcard/part7backup-%lu.bin", ourTime) + 1);
-    if(!backupFile) {
-		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
-		return 1;
-    }
-    sprintf(backupFile, "/sdcard/part7backup-%lu.bin", ourTime);
-    
-    fdout = fopen(backupFile, "wb");
-    if (fdout == NULL){
-		printf("Error opening backup file.\n");
-		return -1;
-    }
-    
-    //  create a copy of the partition
-	while(!feof(fdin)) {
-		ch = fgetc(fdin);
-		if(ferror(fdin)) {
-		  printf("Error reading input file.\n");
-		  exit(1);
-		}
-		if(!feof(fdin)) fputc(ch, fdout);
-		if(ferror(fdout)) {
-		  printf("Error writing copy file.\n");
-		  exit(1);
-		}
-	}
-	if(fclose(fdin)==EOF) {
-		printf("Error closing input file.\n");
-		exit(1);
-	}
-
-	if(fclose(fdout)==EOF) {
-		printf("Error closing copy file.\n");
-		exit(1);
-	}
-
-	if (restore) {
-		// restore backup file
-		fdin = fopen(s_restoreFile, "rb");
-		if (fdin == NULL){
-			printf("Error opening restore file.\n");
-			return -1;
-		}
-
-		fdout = fopen(OUTFILE, "wb");
-		if (fdout == NULL){
-			printf("Error opening output file.\n");
-			return -1;
-		}
-
-		//  copy the restore file back to the partition
-		while(!feof(fdin)) {
-			ch = fgetc(fdin);
-			if(ferror(fdin)) {
-			  printf("Error reading input file.\n");
-			  exit(1);
-			}
-			if(!feof(fdin)) fputc(ch, fdout);
-			if(ferror(fdout)) {
-			  printf("Error writing output file.\n");
-			  exit(1);
-			}
-		}
-
-		if(fclose(fdin)==EOF) {
-			printf("Error closing input file.\n");
-			exit(1);
-		}
-
-		if(fclose(fdout)==EOF) {
-			printf("Error closing output file.\n");
-			exit(1);
-		}
-	} else {
 		//  copy back and patch
 		long j;
 
@@ -878,6 +799,92 @@ int main(int argc, const char **argv)
     printf("Done.\n");
 
     return 0;
+}
+
+int writePartition(char* pImageFile, char* pPartition){
+    FILE *fdin, *fdout;
+    char ch;
+
+    printf("Writing image %s to partition %s ...\n", pImageFile, pPartition);
+	fdin = fopen(pImageFile, "rb");
+	if (fdin == NULL){
+		printf("Error opening input image.\n");
+		return -1;
+	}
+
+	fdout = fopen(pPartition, "wb");
+	if (fdout == NULL){
+		printf("Error opening output partition.\n");
+		return -1;
+	}
+
+	//  copy the image to the partition
+	while(!feof(fdin)) {
+	    ch = fgetc(fdin);
+	    if(ferror(fdin)) {
+	    	printf("Error reading input image.\n");
+	    	return 1;
+	    }
+	    if(!feof(fdin)) fputc(ch, fdout);
+	    if(ferror(fdout)) {
+	      printf("Error writing output partition.\n");
+	      return 1;
+	    }
+	}
+
+	if(fclose(fdin)==EOF) {
+		printf("Error closing input image.\n");
+	    return 1;
+	}
+
+	if(fclose(fdout)==EOF) {
+		printf("Error closing output partition.\n");
+	    return 1;
+	}
+	return 0;
+
+}
+
+int backupPartition(char* pPartition, char* pBackupFile){
+    FILE *fdin, *fdout;
+    char ch;
+
+    printf("Backing up partition %s to %s ...\n", pPartition, pBackupFile);
+	fdin = fopen(pPartition, "rb");
+	if (fdin == NULL){
+		printf("Error opening input partition.\n");
+		return -1;
+	}
+
+	fdout = fopen(pBackupFile, "wb");
+	if (fdout == NULL){
+		printf("Error opening backup file.\n");
+		return -1;
+	}
+
+//  create a copy of the partition
+	while(!feof(fdin)) {
+	    ch = fgetc(fdin);
+	    if(ferror(fdin)) {
+	      printf("Error reading input partition.\n");
+	      return 1;
+	    }
+	    if(!feof(fdin)) fputc(ch, fdout);
+	    if(ferror(fdout)) {
+	      printf("Error writing backup file.\n");
+	      return 1;
+	    }
+	}
+	if(fclose(fdin)==EOF) {
+		printf("Error closing input partition.\n");
+	    return 1;
+	}
+
+	if(fclose(fdout)==EOF) {
+		printf("Error closing backup file.\n");
+	    return 1;
+	}
+	return 0;
 }
 
 int addString(char *string, struct listEnt **root)

@@ -1,4 +1,4 @@
-VERSION = 0.02
+VERSION = 0.7
 CC      = /usr/bin/arm-linux-gnueabi-gcc
 CFLAGS  = -Wall -g -D_REENTRANT -DVERSION=\"$(VERSION)\"
 INCDIR	= -I/usr/arm-linux-gnueabi/usr/include/ -I.
