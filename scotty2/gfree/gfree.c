@@ -197,7 +197,7 @@ int main(int argc, const char **argv)
     char *backupFile;
     time_t ourTime;
 
-    int cid = 0, secu_flag = 0, sim_unlock = 0, verify = 0, help = 0, disable_wp = 0, restore = 0, hboot = 0, recovery = 0;
+    int cid = 0, secu_flag = 0, sim_unlock = 0, help = 0, disable_wp = 0, restore = 0, hboot = 0, recovery = 0;
     const char* s_secu_flag;
     const char* s_cid;
     const char* s_restoreFile;
@@ -266,13 +266,6 @@ int main(int argc, const char **argv)
 	    printf("--sim_unlock. SIMLOCK will be removed\n");
 	}
 	
-	if(gopt(options, 'V'))
-	{
-	    //if any of the sim_unlock options was specified
-	    verify = 1;
-	    printf("--verify. CID, secu_flag, SIMLOCK will be verified\n");
-	}
-	
 	if(gopt(options, 'f'))
 	{
 	    secu_flag = 2;
@@ -309,7 +302,7 @@ int main(int argc, const char **argv)
 			exit(1);
 	    } else {
 	    	recovery = 1;
-			printf("--recovery set. recovery image %s will be installed in partition 21\n", s_hbootFile);
+			printf("--recovery set. recovery image %s will be installed in partition 21\n", s_recoveryFile);
 	    }
 	}
 
@@ -347,6 +340,7 @@ int main(int argc, const char **argv)
 		printf("\t-S | --sim_unlock: remove the SIMLOCK\n");
 		printf("\t-w | --disable_wp: disable write protect on eMMC and remove kernel filter only\n");
 		printf("\t-b | --hboot: <hbootFile>: install hboot from image file\n");
+		printf("\t-y | --recovery: <recoveryFile>: install recovery from image file\n");
 		printf("\t-r | --restore <backupFile>: restore partition from backup file\n");
 		printf("\t-d | --debug: enable debug output\n");
 		printf("\n");
