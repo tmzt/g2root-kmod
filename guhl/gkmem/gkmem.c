@@ -803,6 +803,6 @@ static void __exit gkmem_exit(void)
 module_init(gkmem_init);
 module_exit(gkmem_exit);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Guhl");
 MODULE_DESCRIPTION("i'd like to access my kernels memory, please?");
