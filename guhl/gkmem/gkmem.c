@@ -45,6 +45,7 @@ kernel. The module will create a device calles /dev/gkmem.
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include <asm/kmap_types.h>
 
 #define MOD_RET_OK  -ENOSYS
 #define MOD_RET_FAILINIT -ENOTEMPTY
@@ -147,9 +148,9 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
 			 * we can expect USER0 is not used (see vread/vwrite's
 			 * function description)
 			 */
-			void *map = kmap_atomic(p, KM_USER0);
+			void *map = kmap(p);
 			memcpy(map + offset, buf, length);
-			kunmap_atomic(map, KM_USER0);
+			kunmap(map);
 		}
 		addr += length;
 		buf += length;
