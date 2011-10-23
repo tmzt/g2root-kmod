@@ -48,6 +48,7 @@ void __iomem *io_ptr;
 int gogogo(struct msmsdcc_host *sdcchost, struct mmc_host *mmchost, struct mmc_card *mmccard, struct clk *clk, struct clk *pclk);
 int check_wp(struct mmc_host *host, struct mmc_card *card, uint32_t total_sectors, uint32_t wp_grp_size);
 int toggle_io(int toggle);
+int remove_wp_io(void *l_io_ptr);
 int reset_and_init_emmc(struct mmc_host *mmchost, struct mmc_card *card, struct clk *clk, uint32_t *ocr, uint32_t *cid, uint32_t *csd, uint8_t *ext_csd);
 void powercycle_emmc(void);
 void deferred_resume(struct mmc_host *host);
@@ -184,6 +185,16 @@ int check_wp(struct mmc_host *host, struct mmc_card *card, uint32_t total_sector
 void powercycle_emmc()
 {
 	uint32_t cpio_table;
+
+	void __iomem *msm_sdc1;
+	void __iomem *msm_sdc2;
+
+	msm_sdc1 = ioremap(MSM_SDC1_PHYS, MSM_SDC1_SIZE);
+	remove_wp_io(msm_sdc1);
+
+	msm_sdc2 = ioremap(MSM_SDC2_PHYS, MSM_SDC2_SIZE);
+	remove_wp_io(msm_sdc2);
+
 	mdelay(200);
 	cpio_table = 0x64580;
 	config_gpio_table(&cpio_table, 1);
@@ -222,6 +233,45 @@ int toggle_io(int toggle){
 	ONDEBUG(print_hex_dump(KERN_DEBUG, "io_ptr+268: ", DUMP_PREFIX_ADDRESS,16, 1, io_ptr + 268, 16, true));
 	ONDEBUG(print_hex_dump(KERN_DEBUG, "io_ptr+8: ", DUMP_PREFIX_ADDRESS,16, 1, io_ptr + 8, 16, true));
     return 1;
+}
+
+int remove_wp_io(void *l_io_ptr)
+{
+	int i;
+	char * pos;
+	uint32_t val;
+    ONDEBUG(dmesg("remove_wp_io on entry\n"));
+    ONDEBUG(print_hex_dump(KERN_DEBUG, "l_io_ptr+257: ", DUMP_PREFIX_ADDRESS,8, 1, l_io_ptr + 257, 8, true));
+    ONDEBUG(print_hex_dump(KERN_DEBUG, "l_io_ptr+8: ", DUMP_PREFIX_ADDRESS,8, 1, l_io_ptr + 28, 8, true));
+    val = ioread32(l_io_ptr + 257);
+    ONDEBUG(dmesg("remove_wp_io (l_io_ptr + 257)=0x%.8x, val=0x%.4x\n",(unsigned int)(l_io_ptr + 257),val));
+    val = val & 0x3F;
+    ONDEBUG(dmesg("remove_wp_io (l_io_ptr + 257)=0x%.8x, val & 0x3F =0x%.4x\n",(unsigned int)(l_io_ptr + 257),val));
+    val = val | 1;
+    ONDEBUG(dmesg("remove_wp_io (l_io_ptr + 257)=0x%.8x, val | 1 =0x%.4x\n",(unsigned int)(l_io_ptr + 257),val));
+    iowrite32(val, l_io_ptr + 257);
+    ONDEBUG(dmesg("remove_wp_io *((char *)l_io_ptr + 257)=0x%.4x\n",ioread32(l_io_ptr + 257) ));
+
+    iowrite32(0, l_io_ptr + 28);
+    iowrite32(0, l_io_ptr + 29);
+    iowrite32(0, l_io_ptr + 30);
+    iowrite32(0, l_io_ptr + 31);
+
+	pos = (char *)l_io_ptr + 256;
+	ONDEBUG(dmesg("remove_wp_io pos=0x%.8x\n",*pos));
+	i=0;
+	do
+	{
+		++i;
+		ONDEBUG(dmesg("remove_wp_io pos=0x%.8x, *(char *)pos = 0x%.4x\n",(unsigned int)pos, ioread32(pos)));
+	    iowrite32(0, pos);
+		pos += 4;
+	}
+	while ( i != 8 );
+	ONDEBUG(dmesg("remove_wp_io on exit\n"));
+	ONDEBUG(print_hex_dump(KERN_DEBUG, "l_io_ptr+257: ", DUMP_PREFIX_ADDRESS,8, 1, l_io_ptr + 257, 8, true));
+	ONDEBUG(print_hex_dump(KERN_DEBUG, "l_io_ptr+8: ", DUMP_PREFIX_ADDRESS,8, 1, l_io_ptr + 28, 8, true));
+	return 1;
 }
 
 int reset_and_init_emmc(struct mmc_host *host, struct mmc_card *card, struct clk *clk, uint32_t *ocr, uint32_t *cid, uint32_t *csd, uint8_t *ext_csd)
