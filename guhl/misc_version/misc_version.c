@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2010  Guhl
+    Copyright (C) 2010 - 2012  Guhl
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,13 +30,15 @@
 //#define BACKUPFILE "/opt/install/g2/my_dump/p17/part17backup-%lu.bin"
 
 #define VERSION_A	0
-#define VERSION_B	2
+#define VERSION_B	3
 
 int main(int argc, const char **argv) {
 
-	int cid = 0, set_version = 0, help = 0;
+	int cid = 0, set_version = 0, help = 0, setRUUflag = 0;
 	const char* s_set_version;
-    const char* s_cid;
+	const char* s_cid;
+	const char* s_ruu_flag;
+	const char s_ruu_string[15] = "SetRuuNbhUpdate";
 
 	if (argc>1) {
 
@@ -44,6 +46,7 @@ int main(int argc, const char **argv) {
 		  gopt_option( 'h', 0, gopt_shorts( 'h', '?' ), gopt_longs( "help", "HELP" )),
 		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
 		  gopt_option( 'c', GOPT_ARG, gopt_shorts('c'), gopt_longs("cid")),
+		  gopt_option( 'r', GOPT_ARG, gopt_shorts( 'r' ), gopt_longs( "setRUUflag" )),
 		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "set_version" ))));
 
 		if( gopt( options, 'h' ) ){
@@ -53,6 +56,20 @@ int main(int argc, const char **argv) {
 		if( gopt( options, 'v' ) ){
 			fprintf( stdout, "misc_version version: %d.%d\n",VERSION_A,VERSION_B);
 			exit (0);
+		}
+
+		if(gopt_arg(options, 'r', &s_ruu_flag)){
+			if( (!strcmp(s_ruu_flag, "on")) && (!strcmp(s_ruu_flag, "off")) ){
+				printf("Error: The valid arguments for option setRUUflag are on|off\n");
+				exit (1);
+			}
+			if(!strcmp(s_ruu_flag, "on")){
+				setRUUflag = 1;
+				printf("--setRUUflag on set. RUU flag will be set!\n");
+			} else {
+				setRUUflag = 2;
+				printf("--setRUUflag off set. RUU flag will be cleared!\n");
+			}
 		}
 
 		if(gopt_arg(options, 'c', &s_cid))
@@ -97,6 +114,7 @@ int main(int argc, const char **argv) {
 		fprintf( stdout, "\t-v | --version: display program version\n" );
 		fprintf( stdout, "\t-c | --cid <CID>: set the CID in misc to the 8-char long CID\n");
 		fprintf( stdout, "\t-s | --set_version <VERSION>:  set the version in misc to the 10-char long VERSION\n" );
+		fprintf( stdout, "\t-r | --setRUUflag <on|off>. Set of clear the RUU flag\n" );
 		exit(0);
 	}
 
@@ -170,12 +188,19 @@ int main(int argc, const char **argv) {
 	      exit(1);
 	    }
 		// CID
-		if ((j>=0x0 && j<=0x7)&& (cid!=0)) {
+		if ((j>=0x0 && j<=0x7) && (cid!=0)) {
 			ch = s_cid[j];
 		}
 		// VERSION
-		if ((j>=0xa0 && j<=0xa9)&& (set_version!=0)) {
+		if ((j>=0xa0 && j<=0xa9) && (set_version!=0)) {
 			ch = s_set_version[j-0xa0];
+		}
+		// RUU flag
+		if ((j>=0xb0 && j<=0xbe) && (setRUUflag==1)) {
+			ch = s_ruu_string[j-0xb0];
+		}
+		if ((j>=0xb0 && j<=0xbe) && (setRUUflag==2)) {
+			ch = 0;
 		}
 		if(!feof(fdin)) fputc(ch, fdout);
 		if(ferror(fdout)) {
