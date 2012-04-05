@@ -30,7 +30,7 @@
 //#define BACKUPFILE "/opt/install/g2/my_dump/p17/part17backup-%lu.bin"
 
 #define VERSION_A	0
-#define VERSION_B	3
+#define VERSION_B	4
 
 int main(int argc, const char **argv) {
 
