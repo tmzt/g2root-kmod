@@ -32,6 +32,7 @@
 
 #include "wpthis.h"
 #include "gopt.h"
+#include "md5sum.h"
 
 /*
 c02a0570:       e3530802        cmp     r3, #131072     ; 0x20000
@@ -57,9 +58,31 @@ c02a05bc:       e30011be        movw    r1, #446        ; 0x1be
 c02a05c0:       ebf64b3e        bl      c00332c0 <__bug>
 */
 
-uint32_t brqFilter[] = {0xe3530802,
+/*uint32_t brqFilter[] = {0xe3530802,
 			0x2a000012, // this guy is going to be the bcs to PAST the bug() call, we're going to make it a b,
 			0xe1a0c00d, // which means it's going to turn from [2a xx xx xx] to [ea xx xx xx]
+			0xe59f16d4,
+			0xe3cc3d7f,
+			0xe59f06d0,
+			0xe3c3303f,
+			0xe593200c,
+			0xe2823fc7,
+			0xe58d3000,
+			0xe5923228,
+			0xe5922224,
+			0xeb05330b,
+			0xe5952038,
+			0xe59d1040,
+			0xe59f06ac,
+			0xe1a024a2,
+			0xeb053306,
+			0xe59f06a4,
+			0xe30011be,
+			0xebf64b3e};*/
+
+uint32_t brqFilter[] = {0xe3530802,
+			0x2a000012,
+			0xe1a0c00d,
 			0xe59f16d4,
 			0xe3cc3d7f,
 			0xe59f06d0,
@@ -163,7 +186,7 @@ int writePartition(char* pImageFile, char* pPartition);
 #define MOD_RET_NONEED   EXFULL
 
 #define VERSION_A	0
-#define VERSION_B	7
+#define VERSION_B	9
 
 int debug = 0;
 
@@ -197,13 +220,19 @@ int main(int argc, const char **argv)
     char *backupFile;
     time_t ourTime;
 
-    int cid = 0, secu_flag = 0, sim_unlock = 0, help = 0, disable_wp = 0, restore = 0, hboot = 0, recovery = 0;
+    int cid = 0, secu_flag = 0, sim_unlock = 0, help = 0, disable_wp = 0, disable_kf = 0, restore = 0, hboot = 0, recovery = 0;
     const char* s_secu_flag;
     const char* s_cid;
     const char* s_restoreFile;
     const char* s_hbootFile;
     const char* s_recoveryFile;
+    const char* s_disable_wp;
+    const char* s_disable_kf;
     
+    unsigned char md5buffer1[16];
+    unsigned char md5buffer2[16];
+    unsigned char md5buffer3[16];
+
     if(argc > 1)
     {
 	void *options= gopt_sort( & argc, argv, gopt_start(
@@ -213,7 +242,8 @@ int main(int argc, const char **argv)
 		gopt_option('c', GOPT_ARG, gopt_shorts('c'), gopt_longs("cid")),
 		gopt_option('S', 0, gopt_shorts('S'), gopt_longs("sim_unlock")),
 		gopt_option('f', 0, gopt_shorts('f'), gopt_longs("free_all")),
-		gopt_option('w', 0, gopt_shorts('w'), gopt_longs("disable_wp")),
+		gopt_option('w', GOPT_ARG, gopt_shorts('w'), gopt_longs("disable_wp")),
+		gopt_option('k', GOPT_ARG, gopt_shorts('k'), gopt_longs("disable_kf")),
 		gopt_option('b', GOPT_ARG, gopt_shorts('b'), gopt_longs("hboot")),
 		gopt_option('r', GOPT_ARG, gopt_shorts('r'), gopt_longs("restore")),
 		gopt_option('y', GOPT_ARG, gopt_shorts('y'), gopt_longs("recovery")),
@@ -277,8 +307,45 @@ int main(int argc, const char **argv)
 	    printf("--sim_unlock. SIMLOCK will be removed\n");
 	}
 
-	if(gopt(options, 'w'))
-	    disable_wp = 1;
+	if(gopt_arg(options, 'w', &s_disable_wp)) {
+	    // if -w or --disable_wp was specified, check s_disable_wp
+	    size_t size;
+	    size = strlen(s_disable_wp);
+	    if(size == 0) {
+	    	disable_wp = 0;
+	    } else {
+		    if(!strcmp(s_disable_wp, "yes"))
+		    {
+		    	disable_wp = 1;
+		    	printf("--disable_wp yes set\n");
+		    }
+		    else if(!strcmp(s_disable_wp, "no"))
+		    {
+		    	disable_wp = 2;
+		    	printf("--disable_wp no set\n");
+		    }
+	    }
+	}
+
+	if(gopt_arg(options, 'k', &s_disable_kf)) {
+	    // if -k or --disable_kf was specified, check s_disable_kf
+	    size_t size;
+	    size = strlen(s_disable_kf);
+	    if(size == 0) {
+	    	disable_kf = 0;
+	    } else {
+		    if(!strcmp(s_disable_kf, "yes"))
+		    {
+		    	disable_kf = 1;
+		    	printf("--disable_kf yes set\n");
+		    }
+		    else if(!strcmp(s_disable_kf, "no"))
+		    {
+		    	disable_kf = 2;
+		    	printf("--disable_kf no set\n");
+		    }
+	    }
+	}
 
 	if(gopt_arg(options, 'b', &s_hbootFile)) {
 	    // if -b or --hboot was specified, check s_hbootFile
@@ -338,7 +405,8 @@ int main(int argc, const char **argv)
 		printf("\t-s | --secu_flag on|off: turn secu_flag on or off\n");
 		printf("\t-c | --cid <CID>: set the CID to the 8-char long CID\n");
 		printf("\t-S | --sim_unlock: remove the SIMLOCK\n");
-		printf("\t-w | --disable_wp: disable write protect on eMMC and remove kernel filter only\n");
+		printf("\t-w | --disable_wp yes|no: disable write protect on eMMC\n");
+		printf("\t-k | --disable_kf yes|no: remove kernel filter\n");
 		printf("\t-b | --hboot: <hbootFile>: install hboot from image file\n");
 		printf("\t-y | --recovery: <recoveryFile>: install recovery from image file\n");
 		printf("\t-r | --restore <backupFile>: restore partition from backup file\n");
@@ -348,7 +416,7 @@ int main(int argc, const char **argv)
 		exit(0);
     }
     
-    if(!cid && !secu_flag && !sim_unlock && !disable_wp && !restore && !hboot && !recovery)
+    if(!cid && !secu_flag && !sim_unlock && !disable_wp && !disable_kf && !restore && !hboot && !recovery)
     {
 		printf("no valid option specified, see gfree -h\n" );
 		exit(0);
@@ -356,306 +424,371 @@ int main(int argc, const char **argv)
     
     ourTime = time(0);
     
-    header = (struct elfHeader *)wpthis_ko;
+    // disable the emmc write protection if disable_wp = 0 or disable_wp = 1
+    if (disable_wp==0 || disable_wp==1) {
+		header = (struct elfHeader *)wpthis_ko;
 
-    setvbuf(stdout, 0, _IONBF, 0);
-    setvbuf(stderr, 0, _IONBF, 0);
+		setvbuf(stdout, 0, _IONBF, 0);
+		setvbuf(stderr, 0, _IONBF, 0);
 
-    printf("Section header entry size: %d\n", header->shentsize);
-    printf("Number of section headers: %d\n", header->shnum);
-    printf("Total section header table size: %d\n", header->shentsize * header->shnum);
-    printf("Section header file offset: 0x%.8x (%d)\n", header->shoff, header->shoff);
-    printf("Section index for section name string table: %d\n", header->shstrndx);
+		printf("Section header entry size: %d\n", header->shentsize);
+		printf("Number of section headers: %d\n", header->shnum);
+		printf("Total section header table size: %d\n", header->shentsize * header->shnum);
+		printf("Section header file offset: 0x%.8x (%d)\n", header->shoff, header->shoff);
+		printf("Section index for section name string table: %d\n", header->shstrndx);
 
-    // setup string table
-    stringTable = (uint8_t *)
-	((struct sectionHeader *)((uint32_t)wpthis_ko + header->shoff + (header->shentsize * header->shstrndx)))->offset + (uint32_t)wpthis_ko;
+		// setup string table
+		stringTable = (uint8_t *)
+		((struct sectionHeader *)((uint32_t)wpthis_ko + header->shoff + (header->shentsize * header->shstrndx)))->offset + (uint32_t)wpthis_ko;
 
-    printf("String table offset: 0x%.8x (%d)\n", (uint32_t)stringTable - (uint32_t)wpthis_ko, (uint32_t)stringTable - (uint32_t)wpthis_ko);
+		printf("String table offset: 0x%.8x (%d)\n", (uint32_t)stringTable - (uint32_t)wpthis_ko, (uint32_t)stringTable - (uint32_t)wpthis_ko);
 
-    // scan through section header entries until we find .modinfo
-    printf("Searching for .modinfo section...\n");
-    for(ent = 0; ent < header->shnum; ent++)
-    {
-	section = (struct sectionHeader *)((uint32_t)wpthis_ko + header->shoff + (header->shentsize * ent));
-	if(!strcmp((char*)&stringTable[section->name], ".modinfo"))
-	{
-	    printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
-	    printf(" -- offset: 0x%.8x (%d)\n", section->offset, section->offset);
-	    printf(" -- size: 0x%.8x (%d)\n", section->size, section->size);
-	    modInfo = (void *)((uint32_t)wpthis_ko + section->offset);
-	    modSize = section->size;
-	    modInfoSection = section;
-	    break;
-	}
-	else
-	{
-	    if(debug)
-		printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
-	}
-    }
+		// scan through section header entries until we find .modinfo
+		printf("Searching for .modinfo section...\n");
+		for(ent = 0; ent < header->shnum; ent++)
+		{
+		section = (struct sectionHeader *)((uint32_t)wpthis_ko + header->shoff + (header->shentsize * ent));
+		if(!strcmp((char*)&stringTable[section->name], ".modinfo"))
+		{
+			printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
+			printf(" -- offset: 0x%.8x (%d)\n", section->offset, section->offset);
+			printf(" -- size: 0x%.8x (%d)\n", section->size, section->size);
+			modInfo = (void *)((uint32_t)wpthis_ko + section->offset);
+			modSize = section->size;
+			modInfoSection = section;
+			break;
+		}
+		else
+		{
+			if(debug)
+			printf(" - Section[%d]: %s\n", ent, &stringTable[section->name]);
+		}
+		}
 
-    if(!modInfo)
-    {
-	fprintf(stderr, "Failed to find .modinfo section in ko\n");
-	return 1;
-    }
-
-    // pick the aligned strings out of .modinfo
-    neededBuffer = 0;
-    curString = modInfo;
-    while((uint32_t)curString < ((uint32_t)modInfo + modSize))
-    {
-	if(strlen(curString))
-	{
-	    if(!addString(curString, &stringRoot))
-	    {
-		fprintf(stderr, "Failed to add string to linked list (srsly?)\n");
+		if(!modInfo)
+		{
+		fprintf(stderr, "Failed to find .modinfo section in ko\n");
 		return 1;
-	    }
-	    curString += strlen(curString);
-	}
-	else
-	    curString++;
-    }
+		}
 
-    // get kernel release information
-    if(uname(&kernInfo))
-    {
-        fprintf(stderr, "Failed getting info from uname()\n");
-        return 1;
-    }
+		// pick the aligned strings out of .modinfo
+		neededBuffer = 0;
+		curString = modInfo;
+		while((uint32_t)curString < ((uint32_t)modInfo + modSize))
+		{
+		if(strlen(curString))
+		{
+			if(!addString(curString, &stringRoot))
+			{
+			fprintf(stderr, "Failed to add string to linked list (srsly?)\n");
+			return 1;
+			}
+			curString += strlen(curString);
+		}
+		else
+			curString++;
+		}
 
-    printf("Kernel release: %s\n", kernInfo.release);
+		// get kernel release information
+		if(uname(&kernInfo))
+		{
+			fprintf(stderr, "Failed getting info from uname()\n");
+			return 1;
+		}
 
-    // 2 pass setup of aligned strings
-    neededBuffer = 0;
-    current = stringRoot;
-    while(current)
-    {
-	if(strstr(current->string, "vermagic="))
-	{
-	    free(current->string);
-	    current->string = malloc(snprintf(0, 0, "vermagic=%s preempt mod_unload ARMv7 ", kernInfo.release) + 1);
-	    if(!current->string)
-	    {
-		fprintf(stderr, "Failed to allocate memory for vermagic string... lol.\n");
+		printf("Kernel release: %s\n", kernInfo.release);
+
+		// 2 pass setup of aligned strings
+		neededBuffer = 0;
+		current = stringRoot;
+		while(current)
+		{
+		if(strstr(current->string, "vermagic="))
+		{
+			free(current->string);
+			current->string = malloc(snprintf(0, 0, "vermagic=%s preempt mod_unload ARMv7 ", kernInfo.release) + 1);
+			if(!current->string)
+			{
+			fprintf(stderr, "Failed to allocate memory for vermagic string... lol.\n");
+			return 1;
+			}
+			sprintf(current->string, "vermagic=%s preempt mod_unload ARMv7 ", kernInfo.release);
+		}
+		neededBuffer += strlen(current->string) + 1;
+		neededBuffer += (neededBuffer % 4) ? 4 - (neededBuffer % 4) : 0;
+		current = current->next;
+		}
+		printf("New .modinfo section size: %d\n", neededBuffer);
+
+		buffer = malloc(neededBuffer);
+		if(!buffer)
+		{
+		fprintf(stderr, "Failed to allocate buffer for aligned strings\n");
 		return 1;
-	    }
-	    sprintf(current->string, "vermagic=%s preempt mod_unload ARMv7 ", kernInfo.release);
-	}
-	neededBuffer += strlen(current->string) + 1;
-	neededBuffer += (neededBuffer % 4) ? 4 - (neededBuffer % 4) : 0;
-	current = current->next;
-    }
-    printf("New .modinfo section size: %d\n", neededBuffer);
+		}
 
-    buffer = malloc(neededBuffer);
-    if(!buffer)
-    {
-	fprintf(stderr, "Failed to allocate buffer for aligned strings\n");
-	return 1;
-    }
+		neededBuffer = 0;
+		current = stringRoot;
+		tmpBuffer = buffer;
+		while(current)
+		{
+		neededBuffer += strlen(current->string) + 1;
+		strcpy(tmpBuffer, current->string);
+		tmpBuffer += strlen(current->string) + 1;
+		tmpBuffer += (neededBuffer % 4) ? 4 - (neededBuffer % 4) : 0;
+		neededBuffer += (neededBuffer % 4) ? 4 - (neededBuffer % 4) : 0;
+		current = current->next;
+		}
+		freeStrings(&stringRoot);
 
-    neededBuffer = 0;
-    current = stringRoot;
-    tmpBuffer = buffer;
-    while(current)
-    {
-	neededBuffer += strlen(current->string) + 1;
-	strcpy(tmpBuffer, current->string);
-	tmpBuffer += strlen(current->string) + 1;
-	tmpBuffer += (neededBuffer % 4) ? 4 - (neededBuffer % 4) : 0;
-	neededBuffer += (neededBuffer % 4) ? 4 - (neededBuffer % 4) : 0;
-	current = current->next;
-    }
-    freeStrings(&stringRoot);
+		/*
+		if(!(output = fopen("modinfo.bin", "wb")))
+		{
+		fprintf(stderr, "Failed to open modinfo.bin\n");
+		return 1;
+		}
+		if(fwrite(modInfo, modSize, 1, output) != 1)
+		{
+		fprintf(stderr, "Failed writing modinfo.bin\n");
+		return 1;
+		}
+		fclose(output);
+		if(!(output = fopen("modinfo-new.bin", "wb")))
+		{
+		fprintf(stderr, "Failed to open modinfo-new.bin\n");
+		return 1;
+		}
+		if(fwrite(buffer, neededBuffer, 1, output) != 1)
+		{
+		fprintf(stderr, "Failed writing modinfo-new.bin\n");
+		return 1;
+		}
+		fclose(output);
+		*/
 
-    /*
-    if(!(output = fopen("modinfo.bin", "wb")))
-    {
-	fprintf(stderr, "Failed to open modinfo.bin\n");
-	return 1;
-    }
-    if(fwrite(modInfo, modSize, 1, output) != 1)
-    {
-	fprintf(stderr, "Failed writing modinfo.bin\n");
-	return 1;
-    }
-    fclose(output);
-    if(!(output = fopen("modinfo-new.bin", "wb")))
-    {
-	fprintf(stderr, "Failed to open modinfo-new.bin\n");
-	return 1;
-    }
-    if(fwrite(buffer, neededBuffer, 1, output) != 1)
-    {
-	fprintf(stderr, "Failed writing modinfo-new.bin\n");
-	return 1;
-    }
-    fclose(output);
-    */
+		// copy elf, attach new modinfo section, fix section header.
+		tmpBuffer = malloc(sizeof(wpthis_ko) + neededBuffer);
+		if(!tmpBuffer)
+		{
+		fprintf(stderr, "Failed to allocate new ELF image\n");
+		return 1;
+		}
+		memcpy(tmpBuffer, wpthis_ko, sizeof(wpthis_ko));
+		memcpy(tmpBuffer + sizeof(wpthis_ko), buffer, neededBuffer);
+		modInfoSection = (struct sectionHeader *)(((uint32_t)modInfoSection - (uint32_t)wpthis_ko) + (uint32_t)tmpBuffer);
+		modInfoSection->offset = sizeof(wpthis_ko);
+		modInfoSection->size = neededBuffer;
+		free(buffer);
 
-    // copy elf, attach new modinfo section, fix section header.
-    tmpBuffer = malloc(sizeof(wpthis_ko) + neededBuffer);
-    if(!tmpBuffer)
-    {
-	fprintf(stderr, "Failed to allocate new ELF image\n");
-	return 1;
-    }
-    memcpy(tmpBuffer, wpthis_ko, sizeof(wpthis_ko));
-    memcpy(tmpBuffer + sizeof(wpthis_ko), buffer, neededBuffer);
-    modInfoSection = (struct sectionHeader *)(((uint32_t)modInfoSection - (uint32_t)wpthis_ko) + (uint32_t)tmpBuffer);
-    modInfoSection->offset = sizeof(wpthis_ko);
-    modInfoSection->size = neededBuffer;
-    free(buffer);
+		/*
+		if(!(output = fopen("wpthis-new.ko", "wb")))
+		{
+		fprintf(stderr, "Failed to open wpthis-new.ko\n");
+		return 1;
+		}
+		if(fwrite(tmpBuffer, sizeof(wpthis_ko) + neededBuffer, 1, output) != 1)
+		{
+		fprintf(stderr, "Failed writing wpthis-new.ko\n");
+		return 1;
+		}
+		fclose(output);
+		*/
 
-    /*
-    if(!(output = fopen("wpthis-new.ko", "wb")))
-    {
-	fprintf(stderr, "Failed to open wpthis-new.ko\n");
-	return 1;
-    }
-    if(fwrite(tmpBuffer, sizeof(wpthis_ko) + neededBuffer, 1, output) != 1)
-    {
-	fprintf(stderr, "Failed writing wpthis-new.ko\n");
-	return 1;
-    }
-    fclose(output);
-    */
+		// load the module. ENOSYS means ok.
+		printf("Attempting to power cycle eMMC... ");
+		if(!init_module(tmpBuffer, sizeof(wpthis_ko) + neededBuffer, ""))
+		{
+		printf("Failed.\n");
+		fprintf(stderr, "Module successfully loaded and stayed resident... This is *not* right.\n");
+		return 1;
+		}
 
-    // load the module. ENOSYS means ok.
-    printf("Attempting to power cycle eMMC... ");
-    if(!init_module(tmpBuffer, sizeof(wpthis_ko) + neededBuffer, ""))
-    {
-	printf("Failed.\n");
-	fprintf(stderr, "Module successfully loaded and stayed resident... This is *not* right.\n");
-	return 1;
-    }
+		switch(errno)
+		{
+		case MOD_RET_OK:
+			printf("OK.\n");
+			printf("Write protect was successfully disabled.\n");
+			break;
 
-    switch(errno)
-    {
-	case MOD_RET_OK:
-	    printf("OK.\n");
-	    printf("Write protect was successfully disabled.\n");
-	    break;
+		case MOD_RET_FAILINIT:
+			printf("Failed.\n");
+			fprintf(stderr, "Module failed init, check dmesg.\n");
+			return 1;
 
-	case MOD_RET_FAILINIT:
-	    printf("Failed.\n");
-	    fprintf(stderr, "Module failed init, check dmesg.\n");
-	    return 1;
+		case MOD_RET_FAILWP:
+			printf("Failed. (Not fatal)\n");
+			fprintf(stderr, "Module tried to power cycle eMMC, but could not verify write-protect status.\n");
+			break;
 
-	case MOD_RET_FAILWP:
-	    printf("Failed. (Not fatal)\n");
-	    fprintf(stderr, "Module tried to power cycle eMMC, but could not verify write-protect status.\n");
-	    break;
+		case MOD_RET_FAIL:
+			printf("Failed.\n");
+			fprintf(stderr, "Module failed to power cycle eMMC.\n");
+			return 1;
 
-	case MOD_RET_FAIL:
-	    printf("Failed.\n");
-	    fprintf(stderr, "Module failed to power cycle eMMC.\n");
-	    return 1;
+		case MOD_RET_NONEED:
+			printf("OK.\n");
+			printf("Module did not power-cycle eMMC, write-protect already off.\n");
+			break;
 
-	case MOD_RET_NONEED:
-	    printf("OK.\n");
-	    printf("Module did not power-cycle eMMC, write-protect already off.\n");
-	    break;
+		default:
+			printf("Failed.\n");
+			fprintf(stderr, "Module returned an unknown code (%s).\n", strerror(errno));
+			return 1;
+		}
 
-	default:
-	    printf("Failed.\n");
-	    fprintf(stderr, "Module returned an unknown code (%s).\n", strerror(errno));
-	    return 1;
+		free(tmpBuffer);
     }
 
-    free(tmpBuffer);
-    
-    if(!(kallsyms = fopen("/proc/kallsyms", "rb")))
-    {
-	fprintf(stderr, "Failed to open /proc/kallsyms\n");
-	return 1;
-    }
-    buffer = malloc(1024);
-    if(!buffer)
-    {
-	fprintf(stderr, "Failed to allocate 1024 bytes. You've got bigger problems than this error.\n");
-	return 1;
-    }
-    printf("Searching for mmc_blk_issue_rq symbol...\n");
-    while(fgets(tempString, 256, kallsyms))
-    {
-	char *address;
-	char *type;
-	char *name;
-	char *module;
+    // remove the kernel filter if disable_kf = 0 or disable_kf = 1
+    if (disable_kf==0 || disable_kf==1) {
+		if(!(kallsyms = fopen("/proc/kallsyms", "rb")))
+		{
+		fprintf(stderr, "Failed to open /proc/kallsyms\n");
+		return 1;
+		}
+		buffer = malloc(1024);
+		if(!buffer)
+		{
+		fprintf(stderr, "Failed to allocate 1024 bytes. You've got bigger problems than this error.\n");
+		return 1;
+		}
+		printf("Searching for mmc_blk_issue_rq symbol...\n");
+		while(fgets(tempString, 256, kallsyms))
+		{
+		char *address;
+		char *type;
+		char *name;
+		char *module;
 
-	address = strtok(tempString, "\n");
-	address = strtok(tempString, " ");
-	type = strtok(0, " ");
-	name = strtok(0, "\t");
-	module = strtok(0, " ");
+		address = strtok(tempString, "\n");
+		address = strtok(tempString, " ");
+		type = strtok(0, " ");
+		name = strtok(0, "\t");
+		module = strtok(0, " ");
 
-	if(!strcmp("mmc_blk_issue_rq", name))
-	{
-	    printf(" - Address: %s, type: %s, name: %s, module: %s\n", address, type, name, module ? module : "N/A");
-	    brqAddress = strtoul(address, 0, 16);
-	}
+		if(!strcmp("mmc_blk_issue_rq", name))
+		{
+			printf(" - Address: %s, type: %s, name: %s, module: %s\n", address, type, name, module ? module : "N/A");
+			brqAddress = strtoul(address, 0, 16);
+		}
+		}
+
+		pageSize = getpagesize();
+		mapBase = brqAddress - (brqAddress % pageSize);
+		printf("Kernel map base: 0x%.8x\n", mapBase);
+		if((kernelFD = open("/dev/kmem", O_RDWR)) < 0)
+		{
+			fprintf(stderr, "Failed to open /dev/kmem: %s trying /dev/gkmem\n", strerror(errno));
+			if((kernelFD = open("/dev/gkmem", O_RDWR)) < 0)
+			{
+				fprintf(stderr, "Failed to open /dev/gkmem: %s\n", strerror(errno));
+				return 1;
+			}
+		}
+		kernel = mmap(0, pageSize * 2, PROT_READ | PROT_WRITE, MAP_SHARED, kernelFD, mapBase);
+		if(kernel == MAP_FAILED)
+		{
+		fprintf(stderr, "Failed to mmap kernel memory: %s\n", strerror(errno));
+		return 1;
+		}
+		printf("Kernel memory mapped to 0x%.8x\n", (uint32_t)kernel);
+
+		printf("Searching for brq filter...\n");
+		filterAddress = (uint32_t *)fuzzyInstSearch(brqFilter, kernel, brqMasks, sizeof(brqFilter), pageSize * 2);
+
+		if(filterAddress)
+		{
+		printf(" - Address: 0x%.8x + 0x%x\n", brqAddress, (uint32_t)filterAddress - (uint32_t)kernel + mapBase - brqAddress);
+
+		if(((filterAddress[1] & 0xFF000000) >> 24) != 0x2a)
+		{
+			printf(" - ***WARNING***: Found fuzzy match for brq filter, but conditional branch isn't. (0x%.8x)\n", filterAddress[1]);
+		}
+		else
+		{
+			printf(" - 0x%.8x -> 0x%.8x\n", filterAddress[1], filterAddress[1] = 0xea000000 | (filterAddress[1] & 0x00ffffff));
+		}
+		}
+		else
+		{
+		printf(" - ***WARNING***: Did not find brq filter.\n");
+		}
+
+		munmap(kernel, pageSize * 2);
     }
-
-    pageSize = getpagesize();
-    mapBase = brqAddress - (brqAddress % pageSize);
-    printf("Kernel map base: 0x%.8x\n", mapBase);
-    if((kernelFD = open("/dev/kmem", O_RDWR)) < 0)
-    {
-	fprintf(stderr, "Failed to open /dev/kmem: %s\n", strerror(errno));
-	return 1;
-    }
-    kernel = mmap(0, pageSize * 2, PROT_READ | PROT_WRITE, MAP_SHARED, kernelFD, mapBase);
-    if(kernel == MAP_FAILED)
-    {
-	fprintf(stderr, "Failed to mmap kernel memory: %s\n", strerror(errno));
-	return 1;
-    }
-    printf("Kernel memory mapped to 0x%.8x\n", (uint32_t)kernel);
-
-    printf("Searching for brq filter...\n");
-    filterAddress = (uint32_t *)fuzzyInstSearch(brqFilter, kernel, brqMasks, sizeof(brqFilter), pageSize * 2);
-
-    if(filterAddress)
-    {
-	printf(" - Address: 0x%.8x + 0x%x\n", brqAddress, (uint32_t)filterAddress - (uint32_t)kernel + mapBase - brqAddress);
-
-	if(((filterAddress[1] & 0xFF000000) >> 24) != 0x2a)
-	{
-	    printf(" - ***WARNING***: Found fuzzy match for brq filter, but conditional branch isn't. (0x%.8x)\n", filterAddress[1]);
-	}
-	else
-	{
-	    printf(" - 0x%.8x -> 0x%.8x\n", filterAddress[1], filterAddress[1] = 0xea000000 | (filterAddress[1] & 0x00ffffff));
-	}
-    }
-    else
-    {
-	printf(" - ***WARNING***: Did not find brq filter.\n");
-    }
-
-    munmap(kernel, pageSize * 2);
 
     // Guhl's hboot install code
     // Install a hboot image
     if (hboot){
-    	// backup partition 18
     	printf("Backing up current partition 18 and installing specified hboot image...\n");
-
+    	// get the md5sum of partition 18
+    	int i;
+    	int fail = md5_file (HBOOT_IN_FILE, 0, md5buffer1);
+    	if (fail){
+    		fprintf(stderr, "Failed to failed to calculate md5sum #1 for %s\n",HBOOT_IN_FILE);
+    		return 1;
+    	} else {
+    		printf("md5sum #1 = ");
+            for (i = 0; i < 16; ++i)
+              printf ("%02x", md5buffer1[i]);
+            printf("\n");
+    	}
     	backupFile = malloc(snprintf(0, 0, "/sdcard/part18backup-%lu.bin", ourTime) + 1);
         if(!backupFile) {
     		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
     		return 1;
         }
         sprintf(backupFile, "/sdcard/part18backup-%lu.bin", ourTime);
-    	if (backupPartition(HBOOT_IN_FILE,backupFile)!=0)
-    		exit(1);
-		// install hboot image
-    	if (writePartition((char *)s_hbootFile, HBOOT_OUT_FILE)!=0)
-    		exit(1);
+        // get the md5sum of the hboot image
+        fail = md5_file ((char *)s_hbootFile, 0, md5buffer2);
+    	if (fail){
+    		fprintf(stderr, "Failed to failed to calculate md5sum #2 for %s\n",(char *)s_hbootFile);
+    		return 1;
+    	} else {
+    		printf("md5sum #2 = ");
+            for (i = 0; i < 16; ++i)
+              printf ("%02x", md5buffer2[i]);
+            printf("\n");
+    	}
+
+    	//compare md5_1 and md5_2 if they are the same -> no need to install hboot
+        for (i = 0; i < 16; ++i) {
+          if (md5buffer2[i]!=md5buffer1[i])
+            break;
+        }
+        if (i == 16)
+        	printf("md5sum #1 == md5sum #2 - the hboot image is already installed -> skipping installation\n");
+        else {
+        	// backup partition 18
+			if (backupPartition(HBOOT_IN_FILE,backupFile)!=0)
+				exit(1);
+			// install hboot image
+			if (writePartition((char *)s_hbootFile, HBOOT_OUT_FILE)!=0)
+				exit(1);
+	        // get the md5sum of the partition 18 after installation
+	        fail = md5_file (HBOOT_OUT_FILE, 0, md5buffer3);
+	    	if (fail){
+	    		fprintf(stderr, "Failed to failed to calculate md5sum #3 for %s\n",HBOOT_OUT_FILE);
+	    		return 1;
+	    	} else {
+	    		printf("md5sum #3 = ");
+	            for (i = 0; i < 16; ++i)
+	              printf ("%02x", md5buffer3[i]);
+	            printf("\n");
+	    	}
+	    	//compare md5_2 and md5_3; if they are the same -> OK; else PANIC
+	        for (i = 0; i < 16; ++i) {
+	          if (md5buffer3[i]!=md5buffer2[i])
+	            break;
+	        }
+	        if (i == 16)
+	        	printf("md5sum #3 == md5sum #2 - the hboot image was successfully installed -> OK!\n");
+	        else {
+	        	printf("md5sum #3 != md5sum #2 - the hboot image was successfully installed -> PANIC!!!\n");
+	        	printf("DO NOT REBOOT and join the IRC channel #G2Root on Freenode for further help!!!\n");
+				exit(1);
+	        }
+        }
     }
 
     // Guhl's recovery install code
@@ -695,10 +828,6 @@ int main(int argc, const char **argv)
     	if (writePartition((char *)s_restoreFile, OUTFILE)!=0)
     		exit(1);
     }
-
-    // if we do not want to only disable the wp but not patch partition 7 -> exit
-    if(disable_wp)
-	return 0;
 
     if(cid || secu_flag || sim_unlock){
     // Guhl's part7 patch code
