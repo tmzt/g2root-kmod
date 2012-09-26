@@ -776,17 +776,28 @@ int main(int argc, const char **argv)
 	              printf ("%02x", md5buffer3[i]);
 	            printf("\n");
 	    	}
-	    	//compare md5_2 and md5_3; if they are the same -> OK; else PANIC
+	    	//compare md5_3 and md5_1; if they are the same -> hboot has not been written -> the power cycle failed?
 	        for (i = 0; i < 16; ++i) {
-	          if (md5buffer3[i]!=md5buffer2[i])
+	          if (md5buffer3[i]!=md5buffer1[i])
 	            break;
 	        }
-	        if (i == 16)
-	        	printf("md5sum #3 == md5sum #2 - the hboot image was successfully installed -> OK!\n");
-	        else {
-	        	printf("md5sum #3 != md5sum #2 - the hboot image was successfully installed -> PANIC!!!\n");
-	        	printf("DO NOT REBOOT and join the IRC channel #G2Root on Freenode for further help!!!\n");
-				exit(1);
+	        if (i == 16) {
+	        	printf("md5sum #3 == md5sum #1 - the hboot image was not installed!\n");
+         	    printf("Probably the power cycle of the eMMC failed. Check the messages above.\n");
+	        	printf("You might join the IRC channel #G2Root on Freenode for further help!\n");
+	        } else {
+				//compare md5_2 and md5_3; if they are the same -> OK; else PANIC
+				for (i = 0; i < 16; ++i) {
+				  if (md5buffer3[i]!=md5buffer2[i])
+					break;
+				}
+				if (i == 16)
+					printf("md5sum #3 == md5sum #2 - the hboot image was successfully installed -> OK!\n");
+				else {
+					printf("md5sum #3 != md5sum #2 - the hboot image was NOT successfully installed -> PANIC!!!\n");
+					printf("DO NOT REBOOT and join the IRC channel #G2Root on Freenode for further help!!!\n");
+					exit(1);
+				}
 	        }
         }
     }
