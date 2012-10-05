@@ -178,6 +178,7 @@ int writePartition(char* pImageFile, char* pPartition);
 #define HBOOT_OUT_FILE "/dev/block/mmcblk0p18"
 #define RECOVERY_IN_FILE "/dev/block/mmcblk0p21"
 #define RECOVERY_OUT_FILE "/dev/block/mmcblk0p21"
+#define PATH_FOR_BACKUP "/sdcard"
 
 #define MOD_RET_OK       ENOSYS
 #define MOD_RET_FAILINIT ENOTEMPTY
@@ -185,8 +186,8 @@ int writePartition(char* pImageFile, char* pPartition);
 #define MOD_RET_FAIL     ENOMSG
 #define MOD_RET_NONEED   EXFULL
 
-#define VERSION_A	0
-#define VERSION_B	9
+#define VERSION_A	1
+#define VERSION_B	0
 
 int debug = 0;
 
@@ -228,6 +229,7 @@ int main(int argc, const char **argv)
     const char* s_recoveryFile;
     const char* s_disable_wp;
     const char* s_disable_kf;
+    const char* s_backupPath;
     
     unsigned char md5buffer1[16];
     unsigned char md5buffer2[16];
@@ -247,6 +249,7 @@ int main(int argc, const char **argv)
 		gopt_option('b', GOPT_ARG, gopt_shorts('b'), gopt_longs("hboot")),
 		gopt_option('r', GOPT_ARG, gopt_shorts('r'), gopt_longs("restore")),
 		gopt_option('y', GOPT_ARG, gopt_shorts('y'), gopt_longs("recovery")),
+		gopt_option('p', GOPT_ARG, gopt_shorts('p'), gopt_longs("path")),
 		gopt_option('d', 0, gopt_shorts('d'), gopt_longs("debug"))));
 	
 	
@@ -289,6 +292,12 @@ int main(int argc, const char **argv)
 	    }
 	}
 	
+	if(gopt_arg(options, 'p', &s_backupPath))
+	{
+	    // if -p or --path was specified, set backup path
+		printf("--path set. backups will be stored in: %s instead of %s \n", s_backupPath, PATH_FOR_BACKUP);
+	}
+
 	if(gopt(options, 'S'))
 	{
 	    //if any of the sim_unlock options was specified
@@ -408,6 +417,7 @@ int main(int argc, const char **argv)
 		printf("\t-w | --disable_wp yes|no: disable write protect on eMMC\n");
 		printf("\t-k | --disable_kf yes|no: remove kernel filter\n");
 		printf("\t-b | --hboot: <hbootFile>: install hboot from image file\n");
+		printf("\t-p | --path: <backup path>: create backup files in directory <backup path>\n");
 		printf("\t-y | --recovery: <recoveryFile>: install recovery from image file\n");
 		printf("\t-r | --restore <backupFile>: restore partition from backup file\n");
 		printf("\t-d | --debug: enable debug output\n");
@@ -422,6 +432,9 @@ int main(int argc, const char **argv)
 		exit(0);
     }
     
+    if (s_backupPath == NULL)
+    	s_backupPath = PATH_FOR_BACKUP;
+
     ourTime = time(0);
     
     // disable the emmc write protection if disable_wp = 0 or disable_wp = 1
@@ -733,12 +746,12 @@ int main(int argc, const char **argv)
               printf ("%02x", md5buffer1[i]);
             printf("\n");
     	}
-    	backupFile = malloc(snprintf(0, 0, "/sdcard/part18backup-%lu.bin", ourTime) + 1);
+    	backupFile = malloc(snprintf(0, 0, "%s/part18backup-%lu.bin", s_backupPath, ourTime) + 1);
         if(!backupFile) {
     		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
     		return 1;
         }
-        sprintf(backupFile, "/sdcard/part18backup-%lu.bin", ourTime);
+        sprintf(backupFile, "%s/part18backup-%lu.bin", s_backupPath, ourTime);
         // get the md5sum of the hboot image
         fail = md5_file ((char *)s_hbootFile, 0, md5buffer2);
     	if (fail){
@@ -809,12 +822,12 @@ int main(int argc, const char **argv)
     	// backup partition 21
     	printf("Backing up current partition 21 and installing specified recovery image...\n");
 
-    	backupFile = malloc(snprintf(0, 0, "/sdcard/part21backup-%lu.bin", ourTime) + 1);
+    	backupFile = malloc(snprintf(0, 0, "%s/part21backup-%lu.bin", s_backupPath, ourTime) + 1);
         if(!backupFile) {
     		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
     		return 1;
         }
-        sprintf(backupFile, "/sdcard/part21backup-%lu.bin", ourTime);
+        sprintf(backupFile, "%s/part21backup-%lu.bin", s_backupPath, ourTime);
     	if (backupPartition(RECOVERY_IN_FILE,backupFile)!=0)
     		exit(1);
 		// install recovery image
@@ -828,12 +841,12 @@ int main(int argc, const char **argv)
     	// backup partition 7
     	printf("Backing up current partition 7 and restoring specified backup...\n");
 
-    	backupFile = malloc(snprintf(0, 0, "/sdcard/part7backup-%lu.bin", ourTime) + 1);
+    	backupFile = malloc(snprintf(0, 0, "%s/part7backup-%lu.bin", s_backupPath, ourTime) + 1);
         if(!backupFile) {
     		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
     		return 1;
         }
-        sprintf(backupFile, "/sdcard/part7backup-%lu.bin", ourTime);
+        sprintf(backupFile, "%s/part7backup-%lu.bin", s_backupPath, ourTime);
     	if (backupPartition(INFILE,backupFile)!=0)
     		exit(1);
 		// install partition 7 image
@@ -845,12 +858,12 @@ int main(int argc, const char **argv)
     // Guhl's part7 patch code
     	printf("Backing up current partition 7 and patching it...\n");
 
-        backupFile = malloc(snprintf(0, 0, "/sdcard/part7backup-%lu.bin", ourTime) + 1);
+        backupFile = malloc(snprintf(0, 0, "%s/part7backup-%lu.bin", s_backupPath, ourTime) + 1);
         if(!backupFile) {
     		fprintf(stderr, "Failed to allocate memory for backup file name.. lol\n");
     		return 1;
         }
-        sprintf(backupFile, "/sdcard/part7backup-%lu.bin", ourTime);
+        sprintf(backupFile, "%s/part7backup-%lu.bin", s_backupPath, ourTime);
     	if (backupPartition(INFILE,backupFile)!=0)
     		exit(1);
 
