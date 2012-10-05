@@ -23,14 +23,14 @@
 
 #define INFILE "/dev/block/mmcblk0p17"
 #define OUTFILE "/dev/block/mmcblk0p17"
-#define BACKUPFILE "/sdcard/part17backup-%lu.bin"
+#define PATH_FOR_BACKUP "/sdcard"
 
 //#define INFILE "/opt/install/g2/my_dump/p17/mmcblk0p17.img"
 //#define OUTFILE "/opt/install/g2/my_dump/p17/mmcblk0p17-new.img"
 //#define BACKUPFILE "/opt/install/g2/my_dump/p17/part17backup-%lu.bin"
 
 #define VERSION_A	0
-#define VERSION_B	4
+#define VERSION_B	5
 
 int main(int argc, const char **argv) {
 
@@ -39,6 +39,7 @@ int main(int argc, const char **argv) {
 	const char* s_cid;
 	const char* s_ruu_flag;
 	const char s_ruu_string[15] = "SetRuuNbhUpdate";
+    const char* s_backupPath;
 
 	if (argc>1) {
 
@@ -47,6 +48,7 @@ int main(int argc, const char **argv) {
 		  gopt_option( 'v', 0, gopt_shorts( 'v' ), gopt_longs( "version" )),
 		  gopt_option( 'c', GOPT_ARG, gopt_shorts('c'), gopt_longs("cid")),
 		  gopt_option( 'r', GOPT_ARG, gopt_shorts( 'r' ), gopt_longs( "setRUUflag" )),
+		  gopt_option( 'p', GOPT_ARG, gopt_shorts( 'p' ), gopt_longs("path")),
 		  gopt_option( 's', GOPT_ARG, gopt_shorts( 's' ), gopt_longs( "set_version" ))));
 
 		if( gopt( options, 'h' ) ){
@@ -102,6 +104,12 @@ int main(int argc, const char **argv) {
 			}
 		}
 
+		if(gopt_arg(options, 'p', &s_backupPath))
+		{
+		    // if -p or --path was specified, set backup path
+			printf("--path set. backups will be stored in: %s instead of %s \n", s_backupPath, PATH_FOR_BACKUP);
+		}
+
 	} else {
 		help = 1;
 	}
@@ -114,16 +122,20 @@ int main(int argc, const char **argv) {
 		fprintf( stdout, "\t-v | --version: display program version\n" );
 		fprintf( stdout, "\t-c | --cid <CID>: set the CID in misc to the 8-char long CID\n");
 		fprintf( stdout, "\t-s | --set_version <VERSION>:  set the version in misc to the 10-char long VERSION\n" );
+		fprintf( stdout, "\t-p | --path: <backup path>: create backup files in directory <backup path>\n");
 		fprintf( stdout, "\t-r | --setRUUflag <on|off>. Set of clear the RUU flag\n" );
 		exit(0);
 	}
+
+    if (s_backupPath == NULL)
+    	s_backupPath = PATH_FOR_BACKUP;
 
     char *backupFile;
     time_t ourTime;
 
     ourTime = time(0);
-    backupFile = malloc(snprintf(0, 0, BACKUPFILE, ourTime) + 1);
-    sprintf(backupFile, BACKUPFILE, ourTime);
+	backupFile = malloc(snprintf(0, 0, "%s/part17backup-%lu.bin", s_backupPath, ourTime) + 1);
+    sprintf(backupFile, "%s/part17backup-%lu.bin", s_backupPath, ourTime);
 
 	FILE *fdin, *fdout;
 	char ch;
